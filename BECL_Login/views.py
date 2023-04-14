@@ -11,10 +11,8 @@ def login_view(request):
         body = json.loads(request.body.decode('utf-8'))
         username = body.get("username")
         password = body.get("password")
-        print(username)
         try:
             user = Usuarios.objects.get(usuario=username)
-            print(user)
             if user is not None and user.password_check(password):
                 token = jwt.encode({'user_id': user.codigo, 'user_name': user.nombre,
                                     'user_email': user.email, 'user_faculty': user.facultad}, settings.SECRET_KEY, algorithm='HS256')
@@ -22,4 +20,4 @@ def login_view(request):
             else:
                 return JsonResponse({'error': 'Credenciales Invalidas'})
         except Usuarios.DoesNotExist:
-            return JsonResponse({'error': 'El Usuario no existe'})
+            return JsonResponse({'error': 'El Usuario no existe'}) 
