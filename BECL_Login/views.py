@@ -20,4 +20,4 @@ def login_view(request):
             else:
                 return JsonResponse({'error': 'Credenciales Invalidas'})
         except Usuarios.DoesNotExist:
-            return JsonResponse({'error': 'El Usuario no existe'}) 
+            return JsonResponse({'error': 'El Usuario no existe'})
