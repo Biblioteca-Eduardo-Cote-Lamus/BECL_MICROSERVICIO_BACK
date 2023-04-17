@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)5e_3fzfwm49zts(@4moe3-pmls#k#97iy1bls%&ax1@*$wat8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.2.172']
+#ALLOWED_HOSTS = ['192.168.2.172']
 
 
 # Application definition
@@ -38,7 +38,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'BECL_Login',
+    'corsheaders',
 ]
+
+ALLOWED_HOSTS = [
+    '192.168.2.172',
+    '192.168.2.178',
+]
+
+CORS_ORIGIN_ALLOW_ALL = True;
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -48,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'BECL.urls'
@@ -79,6 +88,7 @@ import os
 
 load_dotenv() #Carga las variables de entorno
 
+#Configuracion de la base de datos
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -90,6 +100,13 @@ DATABASES = {
     }
 }
 
+#Configuracion del envio de correos 
+EMAIL_BACKEND = 'django.core.emil.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT'))
+EMAIL_USE_TLS = bool(os.getenv('EMAIL_USE_TLS'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
