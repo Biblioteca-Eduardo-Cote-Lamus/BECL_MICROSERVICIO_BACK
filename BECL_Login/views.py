@@ -1,11 +1,36 @@
+from django.core.mail import send_mail
+from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.conf import settings
 from .models import Usuarios
+from datetime import datetime, timedelta
 import jwt
 import json
 
+def generate_login_token(user):
+    payload = {
+        'user_id': user.codigo,
+        'user_name': user.nombre,
+        'user_email': user.email,
+        'user_faculty': user.facultad,
+        'exp': datetime.utcnow() + timedelta(hours=1),
+        'iat': datetime.utcnow() 
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
+def generate_forgot_token(user_id):
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.utcnow() + timedelta(hours=1),
+        'iat': datetime.utcnow
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
 @csrf_exempt
+@require_http_methods(['POST'])
 def login_view(request):
     if request.method == 'POST':
         body = json.loads(request.body.decode('utf-8'))
@@ -14,10 +39,18 @@ def login_view(request):
         try:
             user = Usuarios.objects.get(usuario=username)
             if user is not None and user.password_check(password):
-                token = jwt.encode({'user_id': user.codigo, 'user_name': user.nombre,
-                                    'user_email': user.email, 'user_faculty': user.facultad}, settings.SECRET_KEY, algorithm='HS256')
-                return JsonResponse({'token': token})
+                token = generate_login_token(user)
+                return JsonResponse({'token': token, 'ok': True})
             else:
-                return JsonResponse({'error': 'Credenciales Invalidas'})
+                return JsonResponse({'error': 'Credenciales Invalidas', 'ok': False})
         except Usuarios.DoesNotExist:
-            return JsonResponse({'error': 'El Usuario no existe'}) 
+            return JsonResponse({'error': 'El Usuario no existe'})
+        
+@csrf_exempt
+@require_http_methods(['POST'])
+def forgot_password(request):
+    body = json.loads(request.body.decode('utf-8'))
+    email = body.get("email")
+    if not email:
+        return JsonResponse({'message': 'Debe ingresar una direccion de correo electronica'}, status=400)
+    
