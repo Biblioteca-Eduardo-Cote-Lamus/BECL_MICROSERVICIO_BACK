@@ -23,7 +23,7 @@ def generate_login_token(user):
 def generate_forgot_token(user_id):
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(hours=1),
+        'exp': datetime.utcnow() + timedelta(minutes=10),
         'iat': datetime.utcnow
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
@@ -53,4 +53,14 @@ def forgot_password(request):
     email = body.get("email")
     if not email:
         return JsonResponse({'message': 'Debe ingresar una direccion de correo electronica'}, status=400)
-    
+    try:
+        user = Usuarios.objects.get(email=email)
+        token = generate_forgot_token(user.codigo)
+        reset_link = f'{settings.FRo}'
+    except Usuarios.DoesNotExist:
+        return JsonResponse({'error': 'El Usuario no existe'})    
+
+@csrf_exempt
+@require_http_methods(['POST'])
+def reset_password(request):
+    pass    
