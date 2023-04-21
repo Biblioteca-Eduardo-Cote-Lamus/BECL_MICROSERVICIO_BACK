@@ -14,8 +14,7 @@ def generate_login_token(user):
         'user_name': user.nombre,
         'user_email': user.email,
         'user_faculty': user.facultad,
-        'exp': datetime.utcnow() + timedelta(hours=1),
-        'iat': datetime.utcnow() 
+        'exp': datetime.utcnow() + timedelta(minutes=1)
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token
@@ -23,8 +22,7 @@ def generate_login_token(user):
 def generate_forgot_token(user_id):
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(minutes=10),
-        'iat': datetime.utcnow
+        'exp': datetime.utcnow() + timedelta(minutes=5)
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token
@@ -45,7 +43,7 @@ def login_view(request):
                 return JsonResponse({'error': 'Credenciales Invalidas', 'ok': False})
         except Usuarios.DoesNotExist:
             return JsonResponse({'error': 'El Usuario no existe'})
-        
+#TODO:Terminar de hacer esta vista 
 @csrf_exempt
 @require_http_methods(['POST'])
 def forgot_password(request):
