@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 ALLOWED_HOSTS = [
     '192.168.2.172',
     '192.168.2.178',
+    'localhost',
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True;

@@ -6,14 +6,16 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from datetime import datetime
-from .models import Events_DB, Events_P
+#from .models import Events_DB, Events_P
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os.path
 import jwt
 import json
+import pytz
 
 list_events = []
+list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
 @csrf_exempt
 @require_http_methods(['POST'])
@@ -21,13 +23,20 @@ def events_PDB(request):
     credentials = getCredentials()
     body = json.loads(request.body.decode('utf-8'))
     token = body.get('token')
-    fechas = body.get('dates')
+    date = body.get('dates')
+    type_event = body.get('type')
     service = build('calendar', 'v3', credentials=credentials)
     if is_Token_Valid(token):
-        events_result = service.events().list(calendarId='primary', timeMin=fechas[0], timeMax=fechas[1], singleEvents=True, orderBy='startTime').execute()
-        list_events = events_result.get('items', [])
-        list_events = list( map(lambda event: event["summary"], list_events) )
-        return JsonResponse({'evenst': list_events})
+        list_event_today = events_today(service,date[0],date[1],type_event)
+        hours_events = realization_events(list_event_today)
+        return JsonResponse({'events': list_event_today, "hours": hours_events})
+
+#Funcion que me retorna los eventos de una fecha dada
+def events_today(service, start, end, option):
+    events_result = service.events().list(calendarId='primary', timeMin=start, timeMax=end, singleEvents=True, orderBy='startTime').execute()
+    list_events = events_result.get('items',[])
+    list_events = list(filter(lambda event: option in event['summary'][0:3], list_events))
+    return list_events
 
 #Funcion que valida que el token este activo
 def is_Token_Valid(token):
@@ -41,12 +50,33 @@ def is_Token_Valid(token):
         return JsonResponse({'ok':False})
 
 #Funcion que me devuelve los eventos a realizar
-def realization_events(event):
-    start = event['start'].get('dateTime', event['start'].get('date'))
-    end = event['end'].get('dateTime', event['end'].get('date'))
-    start_time = datetime.fromisoformat(start).strftime('%I:%M %p')
-    end_time = datetime.fromisoformat(end).strftime('%I:%M %p')
-    return [start_time, end_time]
+def realization_events(list_event):
+    list_hours_events = []
+    for event in list_event:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        end = event['end'].get('dateTime', event['end'].get('date'))
+        start_time = datetime.fromisoformat(start).strftime('%I:%M %p')
+        end_time = datetime.fromisoformat(end).strftime('%I:%M %p')
+        list_hours_events.append([start_time,end_time])
+    return list_hours_events
+
+#Funcion que convierte de unformato de Hora 00:00 PM/AM a formato de 24H
+def stringToInt(list_hours):
+    list_hours_int = []
+    for hours in list_hours:
+        start = datetime.strptime(hours[0], '%I:%M %p').strftime('%H')
+        end = datetime.strptime(hours[1], '%I:%M %p').strftime('%H')
+        list_hours_int.append([start,end])
+    return list_hours_int
+
+#Funcion que me remueve las horas que no estan disponibles
+def possible_hours(list_hours):
+    for schedule in list_hours:
+        if len(schedule) == 0:
+            return
+        else:
+            for hora in range(schedule[0], schedule[1]):
+                list_hours_today.remove(hora);
 
 #Funcion que retorna el inicio del dia
 def todayStart():
