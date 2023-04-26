@@ -29,13 +29,18 @@ def events_PDB(request):
     if is_Token_Valid(token):
         list_event_today = events_today(service,date[0],date[1],type_event)
         hours_events = realization_events(list_event_today)
-        return JsonResponse({'events': list_event_today, "hours": hours_events})
+        possible_hours(hours_events)
+        ranges = generate_ranges()
+        answer = generate_possible_end_times(ranges)
+        return JsonResponse(answer)
+    else:
+        return JsonResponse({'ok':False})
 
 #Funcion que me retorna los eventos de una fecha dada
 def events_today(service, start, end, option):
     events_result = service.events().list(calendarId='primary', timeMin=start, timeMax=end, singleEvents=True, orderBy='startTime').execute()
     list_events = events_result.get('items',[])
-    list_events = list(filter(lambda event: option in event['summary'][0:3], list_events))
+    list_events = filterByOption(list_events, option)
     return list_events
 
 #Funcion que valida que el token este activo
@@ -77,6 +82,37 @@ def possible_hours(list_hours):
         else:
             for hora in range(schedule[0], schedule[1]):
                 list_hours_today.remove(hora);
+
+# Funcion que genera los posbles rangos de las horas
+def generate_ranges():
+    start_hours = list_hours_today[0]
+    ranges = []
+    for i in range(len(start_hours)-1):
+        if list_hours_today[i+1] - list_hours_today[i] != 1:
+            if start_hours == list_hours_today[i]:
+                ranges.append([start_hours])
+            else:
+                ranges.append([start_hours, list_hours_today[i]])
+        start_hours = list_hours_today[i+1]
+    ranges.append(list(range(start_hours, list_hours_today[-1] + 1)))
+    return ranges
+
+#Funcion que genera los rangos de las horas: Ejemplo empieza a las 6 lo max es a las 10 tiempo de apartado de 4h
+def generate_ranges_hours(start,end):
+    max_possible_hours = start + 4
+    if max_possible_hours in range(start, end +1):
+        return {'hours': start,'possible': [x for x in range(start+1, max_possible_hours+1)]}
+    else:
+        return {'hours': start, 'possible': [x for x in range(start + 1, end + 2)]}
+
+#Funcion que genera los rangos posibles si solo hay una hora
+def generate_possible_end_times(ranges):
+    hours = []
+    for range_hours in ranges:
+        lists = list(range(range_hours[0], range_hours[1] + 1)) if len(range_hours) == 2 else list(range(range_hours[0], range_hours[0] + 1))
+        for i in lists:
+            hours.append(generate_ranges_hours(i, range_hours[-1]))
+    return hours
 
 #Funcion que retorna el inicio del dia
 def todayStart():
