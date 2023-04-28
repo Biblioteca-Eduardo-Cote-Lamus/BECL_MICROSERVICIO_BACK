@@ -14,7 +14,7 @@ def generate_login_token(user):
         'user_name': user.nombre,
         'user_email': user.email,
         'user_faculty': user.facultad,
-        'exp': datetime.utcnow() + timedelta(minutes=1)
+        'exp': datetime.utcnow() + timedelta(hours=1)
     }
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
     return token

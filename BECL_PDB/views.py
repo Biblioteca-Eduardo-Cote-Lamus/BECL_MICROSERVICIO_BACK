@@ -15,7 +15,7 @@ import json
 import pytz
 
 list_events = []
-list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
 
 @csrf_exempt
 @require_http_methods(['POST'])
@@ -26,33 +26,34 @@ def events_PDB(request):
     date = body.get('dates')
     type_event = body.get('type')
     service = build('calendar', 'v3', credentials=credentials)
-    if is_Token_Valid(token):
-        list_event_today = events_today(service,date[0],date[1],type_event)
-        hours_events = realization_events(list_event_today)
-        possible_hours(hours_events)
-        ranges = generate_ranges()
-        answer = generate_possible_end_times(ranges)
-        return JsonResponse(answer)
-    else:
-        return JsonResponse({'ok':False})
+    try:    
+        if not is_Token_Valid(token):
+            list_event_today = events_today(service,date[0],date[1],type_event)
+            hours_events = realization_events(list_event_today)
+            hours_events_24H = stringToInt(hours_events)
+            list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
+            ranges = generate_ranges(list_possible_hours)
+            answer = generate_possible_end_times(ranges)
+            return JsonResponse({'events_hours':answer})
+        else:
+            return JsonResponse({'ok':False})
+    except jwt.exceptions.InvalidSignatureError:
+        return JsonResponse({'ok': False})
 
 #Funcion que me retorna los eventos de una fecha dada
 def events_today(service, start, end, option):
     events_result = service.events().list(calendarId='primary', timeMin=start, timeMax=end, singleEvents=True, orderBy='startTime').execute()
     list_events = events_result.get('items',[])
-    list_events = filterByOption(list_events, option)
+    list_events = list(filterByOption(list_events, option))
     return list_events
 
 #Funcion que valida que el token este activo
 def is_Token_Valid(token):
-    try:
-        decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
-        exp_timestamp= decode_token['exp']
-        exp_datetime = datetime.fromtimestamp(exp_timestamp)
-        if datetime.utcnow() > exp_datetime:
-            return JsonResponse({'ok': False})
-    except jwt.exceptions.InvalidSignatureError:
-        return JsonResponse({'ok':False})
+    decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
+    exp_timestamp= decode_token['exp']
+    exp_datetime = datetime.fromtimestamp(exp_timestamp)
+    if datetime.utcnow() > exp_datetime:
+        return False
 
 #Funcion que me devuelve los eventos a realizar
 def realization_events(list_event):
@@ -71,39 +72,45 @@ def stringToInt(list_hours):
     for hours in list_hours:
         start = datetime.strptime(hours[0], '%I:%M %p').strftime('%H')
         end = datetime.strptime(hours[1], '%I:%M %p').strftime('%H')
-        list_hours_int.append([start,end])
+        list_hours_int.append([int(start), int(end)])
     return list_hours_int
 
 #Funcion que me remueve las horas que no estan disponibles
-def possible_hours(list_hours):
-    for schedule in list_hours:
+def possible_hours(list_events, list_hours):
+    for schedule in list_events:
         if len(schedule) == 0:
             return
         else:
             for hora in range(schedule[0], schedule[1]):
-                list_hours_today.remove(hora);
+                list_hours.remove(hora)
+    return list_hours
 
 # Funcion que genera los posbles rangos de las horas
-def generate_ranges():
-    start_hours = list_hours_today[0]
+def generate_ranges(list_schedule):
+    start_hours = list_schedule[0]
     ranges = []
-    for i in range(len(start_hours)-1):
-        if list_hours_today[i+1] - list_hours_today[i] != 1:
-            if start_hours == list_hours_today[i]:
+    if len(list_schedule) == 14:
+        ranges.append([6,19])
+        return ranges
+    for i in range(len(list_schedule)-1):
+        if list_schedule[i+1] - list_schedule[i] != 1:
+            if start_hours == list_schedule[i]:
                 ranges.append([start_hours])
             else:
-                ranges.append([start_hours, list_hours_today[i]])
-        start_hours = list_hours_today[i+1]
-    ranges.append(list(range(start_hours, list_hours_today[-1] + 1)))
+                ranges.append([start_hours, list_schedule[i]])
+            start_hours = list_schedule[i+1]
+    ranges.append(list(range(start_hours, list_schedule[-1] + 1)))
     return ranges
 
 #Funcion que genera los rangos de las horas: Ejemplo empieza a las 6 lo max es a las 10 tiempo de apartado de 4h
 def generate_ranges_hours(start,end):
     max_possible_hours = start + 4
     if max_possible_hours in range(start, end +1):
-        return {'hours': start,'possible': [x for x in range(start+1, max_possible_hours+1)]}
+        return {'hours': str(start) + ":00 am" if start <= 12 else str(abs(start-12)) + ":00 pm",
+                'possible': [x for x in range(start+1, max_possible_hours+1)]}
     else:
-        return {'hours': start, 'possible': [x for x in range(start + 1, end + 2)]}
+        return {'hours': str(start) + ":00 am" if start <= 12 else str(abs(start-12)) + ":00 pm", 
+                'possible': [x for x in range(start + 1, end + 2)]}
 
 #Funcion que genera los rangos posibles si solo hay una hora
 def generate_possible_end_times(ranges):
