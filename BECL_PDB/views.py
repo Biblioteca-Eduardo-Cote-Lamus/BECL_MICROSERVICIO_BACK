@@ -26,7 +26,7 @@ def events_PDB(request):
     date = body.get('dates')
     type_event = body.get('type')
     service = build('calendar', 'v3', credentials=credentials)
-    try:    
+    try:
         if not is_Token_Valid(token):
             list_event_today = events_today(service,date[0],date[1],type_event)
             hours_events = realization_events(list_event_today)
@@ -34,11 +34,66 @@ def events_PDB(request):
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
             answer = generate_possible_end_times(ranges)
-            return JsonResponse({'events_hours':answer})
+            return JsonResponse({'events_hours':answer, 'events':list_event_today})
         else:
-            return JsonResponse({'ok':False})
-    except jwt.exceptions.InvalidSignatureError:
+            return JsonResponse({'ok': False})
+    except jwt.exceptions.InvalidTokenError:
         return JsonResponse({'ok': False})
+
+@csrf_exempt
+@require_http_methods(['POST'])
+def schedule_PDB(request):
+    body = json.loads(request.body.decode('utf-8'))
+    token = body.get('token')
+    title = body.get('title')
+    dates = body.get('dates')
+    emails = body.get('emails')
+    if not is_Token_Valid(token):    
+        credentials = getCredentials()
+        service = build('calendar', 'v3', credentials=credentials)
+        event = format_event(title, dates, emails)
+        print(event)
+        service.events().insert(calendarId='primary',body=event, sendUpdates='all').execute()
+        return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!'})
+    else:
+        return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
+    
+#Funcion la cual crea el documento de apartado del auditorio
+def get_format_document_A(date, title, name, code, dependence, start, end, n_people):
+    pass
+
+#Funcion la cual crea el documento de apartado de la sala de semilleros
+def get_format_document_S():
+    pass 
+#Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
+def format_event(title,dates,emails):
+    list_emails = get_list_emails(emails)
+    print(list_emails)
+    event = {
+        'summary': title,
+        'location': 'Biblioteca Eduardo Cote Lamus, Av. 12 Este #2-24, Quinta Oriental, Cúcuta, Norte de Santander, Colombia',
+        'start': {
+            'dateTime': dates[0],
+            'timeZone': 'America/Bogota'
+        },
+        'end': {
+            'dateTime': dates[1],
+            'timeZone': 'America/Bogota'
+        },
+        'attendees': list_emails,
+        'reminders': {
+            'useDefault': True,
+        }
+    }
+    return event
+
+#Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
+def get_list_emails(emails):
+    list_email = [{'email': 'andresalexanderss@ufps.edu.co'},
+                  {'email': 'angelgabrielgara@ufps.edu.co'},]
+    for email in emails:
+        list_email.append({'email': email})
+    return list_email
 
 #Funcion que me retorna los eventos de una fecha dada
 def events_today(service, start, end, option):
@@ -54,7 +109,9 @@ def is_Token_Valid(token):
     exp_datetime = datetime.fromtimestamp(exp_timestamp)
     if datetime.utcnow() > exp_datetime:
         return False
-
+    else:
+        return True
+    
 #Funcion que me devuelve los eventos a realizar
 def realization_events(list_event):
     list_hours_events = []
@@ -99,7 +156,7 @@ def generate_ranges(list_schedule):
             else:
                 ranges.append([start_hours, list_schedule[i]])
             start_hours = list_schedule[i+1]
-    ranges.append(list(range(start_hours, list_schedule[-1] + 1)))
+    ranges.append([start_hours, list_schedule[-1]+1])
     return ranges
 
 #Funcion que genera los rangos de las horas: Ejemplo empieza a las 6 lo max es a las 10 tiempo de apartado de 4h
@@ -141,7 +198,7 @@ def filterByOption(events,option):
 #Funcion que me genera el token
 def getCredentials():
     # Si modifica este scopes, borra el archivo token.json 
-    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
     creds = None
     # El archivo token.json almacena los tokens de acceso y actualización del usuario, y es
     # creado automáticamente cuando el flujo de autorización se completa por primera vez
@@ -158,5 +215,5 @@ def getCredentials():
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            token.write(creds.to_json()) 
     return creds
