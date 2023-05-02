@@ -201,8 +201,9 @@ def possible_hours(list_events, list_hours):
 
 # Funcion que genera los posbles rangos de las horas
 def generate_ranges(list_schedule):
-    start_hours = list_schedule[0]
     ranges = []
+    if len(list_schedule) == 0: return ranges
+    start_hours = list_schedule[0]
     if len(list_schedule) == 14:
         ranges.append([6,19])
         return ranges
