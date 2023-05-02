@@ -5,10 +5,12 @@ from django.http import JsonResponse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from datetime import datetime
-#from .models import Events_DB, Events_P
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+#from .models import Events_DB, Events_P
+from datetime import datetime
+from docxtpl import DocxTemplate
 import os.path
 import jwt
 import json
@@ -50,42 +52,97 @@ def schedule_PDB(request):
     emails = body.get('emails')
     if not is_Token_Valid(token):    
         credentials = getCredentials()
-        service = build('calendar', 'v3', credentials=credentials)
         event = format_event(title, dates, emails)
-        print(event)
-        service.events().insert(calendarId='primary',body=event, sendUpdates='all').execute()
+        service = build('calendar', 'v3', credentials=credentials)
+        service.events().insert(calendarId='primary', body=event).execute()
         return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!'})
     else:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
     
 #Funcion la cual crea el documento de apartado del auditorio
-def get_format_document_A(date, title, name, code, dependence, start, end, n_people):
-    pass
+def get_format_document_A(title, name, code, dependence, start, end, num_people):
+    doc = DocxTemplate('doc/Formato Aditorio.docx')
+    now = datetime.utcnow()
+    
+    hour = now.strftime('%H-%M-%S')
+    date = now.strftime('%d-%m-%Y')
+    data_docx = {
+        'fecha': date,
+        'titulo': title,
+        'dependencia': dependence,
+        'personas': num_people,
+        'nombre': name,
+        'codigo': code,
+        'inicio': start,
+        'fin': end,
+    }
+    
+    name_docx = f'{hour} Prestamo Auditorio.docx'
+    doc.render(data_docx)
+    doc.save(name_docx)
+    
+    return name_docx
 
 #Funcion la cual crea el documento de apartado de la sala de semilleros
-def get_format_document_S():
-    pass 
+def get_format_document_S(hotbed, department, phone, num_people, name, code, start, end):
+    doc = DocxTemplate('doc/Formato Semillero.docx')
+    now = datetime.utcnow()
+    
+    hour = now.strftime('%H-%M-%S')
+    date = now.strftime('%d-%m-%Y')
+    data_docx = {
+        'fecha': date,
+        'semillero': hotbed,
+        'departamento': department,
+        'telefono': phone,
+        'personas': num_people,
+        'nombre': name,
+        'codigo': code,
+        'inicio': start,
+        'fin': end,
+    }
+    
+    name_docx = f'{hour} Prestamo Semillero.docx'
+    doc.render(data_docx)
+    doc.save(name_docx)
+    
+    return name_docx
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
 def format_event(title,dates,emails):
     list_emails = get_list_emails(emails)
-    print(list_emails)
+    start = dates[0]
+    end = dates[1]
     event = {
         'summary': title,
-        'location': 'Biblioteca Eduardo Cote Lamus, Av. 12 Este #2-24, Quinta Oriental, Cúcuta, Norte de Santander, Colombia',
+        'location': '',
+        'description': 'probando',
         'start': {
-            'dateTime': dates[0],
-            'timeZone': 'America/Bogota'
+            'dateTime': start,
+            'timeZone': 'America/Bogota',
         },
         'end': {
-            'dateTime': dates[1],
-            'timeZone': 'America/Bogota'
+            'dateTime': end,
+            'timeZone': 'America/Bogota',
         },
         'attendees': list_emails,
         'reminders': {
-            'useDefault': True,
-        }
+            'useDefault': False,
+        },
     }
     return event
+
+#Funcion que sube los formatos de prestamo a una carpeta de drive
+def upload_to_folder(name_docx):
+    credentials = getCredentials()
+    try:
+        service = build('drive', 'v3', credentials=credentials)
+        file_metadata = {
+            'name': '',
+            'parents': '1tPqbfkj_OMr4nVTJKUO_GzAwfj1ozd3GVsKRmUYo4nzx8YagEb7HP8AvBcGlvrvRQqEvWdaz'
+        }
+        media = MediaFileUpload(f'doc/{name_docx}')
+    except HttpError:
+        return JsonResponse({'ok': False, 'message': 'El Documento no se puedo subir'})
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
 def get_list_emails(emails):
@@ -198,7 +255,7 @@ def filterByOption(events,option):
 #Funcion que me genera el token
 def getCredentials():
     # Si modifica este scopes, borra el archivo token.json 
-    SCOPES = ['https://www.googleapis.com/auth/calendar']
+    SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive.metadata']
     creds = None
     # El archivo token.json almacena los tokens de acceso y actualización del usuario, y es
     # creado automáticamente cuando el flujo de autorización se completa por primera vez
