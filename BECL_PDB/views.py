@@ -11,6 +11,9 @@ from googleapiclient.http import MediaFileUpload
 #from .models import Events_DB, Events_P
 from datetime import datetime
 from docxtpl import DocxTemplate
+from dotenv import load_dotenv
+import base64
+import os
 import os.path
 import jwt
 import json
@@ -107,6 +110,7 @@ def get_format_document_S(hotbed, department, phone, num_people, name, code, sta
     doc.save(name_docx)
     
     return name_docx
+
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
 def format_event(title,dates,emails):
     list_emails = get_list_emails(emails)
@@ -132,17 +136,21 @@ def format_event(title,dates,emails):
     return event
 
 #Funcion que sube los formatos de prestamo a una carpeta de drive
-def upload_to_folder(name_docx):
+def upload_to_folder(name_docx, option):
+    load_dotenv()
     credentials = getCredentials()
+    hour = datetime.utcnow().strftime('%H-%M-%S')
     try:
         service = build('drive', 'v3', credentials=credentials)
         file_metadata = {
-            'name': '',
-            'parents': '1tPqbfkj_OMr4nVTJKUO_GzAwfj1ozd3GVsKRmUYo4nzx8YagEb7HP8AvBcGlvrvRQqEvWdaz'
+            'name': f'Formato Auditorio {hour}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
+            'parents': os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')
         }
-        media = MediaFileUpload(f'doc/{name_docx}')
+        media = MediaFileUpload(f'doc/{name_docx}', mimetype='	application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
+        service.file().create(body=file_metadata, media_body=media, fields= 'id').execute()
+        return True
     except HttpError:
-        return JsonResponse({'ok': False, 'message': 'El Documento no se puedo subir'})
+        return False
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
 def get_list_emails(emails):
@@ -214,7 +222,7 @@ def generate_ranges(list_schedule):
             else:
                 ranges.append([start_hours, list_schedule[i]])
             start_hours = list_schedule[i+1]
-    ranges.append([start_hours, list_schedule[-1]+1])
+    ranges.append([start_hours, list_schedule[-1]])
     return ranges
 
 #Funcion que genera los rangos de las horas: Ejemplo empieza a las 6 lo max es a las 10 tiempo de apartado de 4h
@@ -256,7 +264,7 @@ def filterByOption(events,option):
 #Funcion que me genera el token
 def getCredentials():
     # Si modifica este scopes, borra el archivo token.json 
-    SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive.metadata']
+    SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/drive']
     creds = None
     # El archivo token.json almacena los tokens de acceso y actualización del usuario, y es
     # creado automáticamente cuando el flujo de autorización se completa por primera vez
