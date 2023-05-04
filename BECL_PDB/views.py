@@ -1,18 +1,17 @@
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-#from .models import Events_DB, Events_P
-from datetime import datetime
+from .models import Events_DB, Events_P
+from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
 from dotenv import load_dotenv
-import base64
 import os
 import os.path
 import jwt
@@ -40,8 +39,8 @@ def events_PDB(request):
             ranges = generate_ranges(list_possible_hours)
             answer = generate_possible_end_times(ranges)
             return JsonResponse({'events_hours':answer, 'events':list_event_today})
-        else:
-            return JsonResponse({'ok': False})
+        
+        return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
     except jwt.exceptions.InvalidTokenError:
         return JsonResponse({'ok': False})
 
@@ -53,18 +52,22 @@ def schedule_PDB(request):
     title = body.get('title')
     dates = body.get('dates')
     emails = body.get('emails')
-    if not is_Token_Valid(token):    
-        credentials = getCredentials()
-        event = format_event(title, dates, emails)
-        service = build('calendar', 'v3', credentials=credentials)
-        service.events().insert(calendarId='primary', body=event).execute()
-        return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!'})
-    else:
+    try:
+        if not is_Token_Valid(token):    
+            credentials = getCredentials()
+            event = format_event(title, dates, emails)
+            service = build('calendar', 'v3', credentials=credentials)
+            service.events().insert(calendarId='primary', body=event).execute()
+            name = get_format_document_A("Prueba xd", "Andres", "1152231", "Ingenieria", "8:00 PM", "7:00 AM", "100")
+            file_id = upload_to_folder(name, 'A')
+            return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'url_filed': file_id})
+        
+        return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
+    except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
-    
 #Funcion la cual crea el documento de apartado del auditorio
 def get_format_document_A(title, name, code, dependence, start, end, num_people):
-    doc = DocxTemplate('doc/Formato Aditorio.docx')
+    doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx')
     now = datetime.utcnow()
     
     hour = now.strftime('%H-%M-%S')
@@ -82,13 +85,13 @@ def get_format_document_A(title, name, code, dependence, start, end, num_people)
     
     name_docx = f'{hour} Prestamo Auditorio.docx'
     doc.render(data_docx)
-    doc.save(name_docx)
+    doc.save(f'BECL_PDB/doc/doc_auditorio/{name_docx}')
     
     return name_docx
 
 #Funcion la cual crea el documento de apartado de la sala de semilleros
 def get_format_document_S(hotbed, department, phone, num_people, name, code, start, end):
-    doc = DocxTemplate('doc/Formato Semillero.docx')
+    doc = DocxTemplate('BECL_PDB/doc/Formato Semillero.docx')
     now = datetime.utcnow()
     
     hour = now.strftime('%H-%M-%S')
@@ -144,13 +147,13 @@ def upload_to_folder(name_docx, option):
         service = build('drive', 'v3', credentials=credentials)
         file_metadata = {
             'name': f'Formato Auditorio {hour}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
-            'parents': os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')
+            'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        media = MediaFileUpload(f'doc/{name_docx}', mimetype='	application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
-        service.file().create(body=file_metadata, media_body=media, fields= 'id').execute()
-        return True
+        media = MediaFileUpload(f'BECL_PDB/doc/doc_auditorio/{name_docx}', mimetype='	application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
+        file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
+        return file.get("id")
     except HttpError:
-        return False
+        return HttpResponse("ocurrio un error")
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
 def get_list_emails(emails):
@@ -169,10 +172,14 @@ def events_today(service, start, end, option):
 
 #Funcion que valida que el token este activo
 def is_Token_Valid(token):
+    colombia_time = datetime.utcnow() + timedelta(hours=-5)
     decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
     exp_timestamp= decode_token['exp']
     exp_datetime = datetime.fromtimestamp(exp_timestamp)
-    if datetime.utcnow() > exp_datetime:
+    print(exp_datetime)
+    print(colombia_time)
+    if colombia_time < exp_datetime:
+        print("Entro en el if de is_valid_token")
         return False
     else:
         return True
