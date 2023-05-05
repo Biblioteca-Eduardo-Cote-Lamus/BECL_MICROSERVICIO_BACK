@@ -38,8 +38,7 @@ def events_PDB(request):
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
             answer = generate_possible_end_times(ranges)
-            return JsonResponse({'events_hours':answer, 'events':list_event_today})
-        
+            return JsonResponse({'events_hours':answer, 'events':list_event_today})     
         return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
     except jwt.exceptions.InvalidTokenError:
         return JsonResponse({'ok': False})
@@ -60,8 +59,7 @@ def schedule_PDB(request):
             service.events().insert(calendarId='primary', body=event).execute()
             name = get_format_document_A("Prueba xd", "Andres", "1152231", "Ingenieria", "8:00 PM", "7:00 AM", "100")
             file_id = upload_to_folder(name, 'A')
-            return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'url_filed': file_id})
-        
+            return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'url_filed': file_id, 'name_file': name}) 
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
@@ -139,19 +137,25 @@ def format_event(title,dates,emails):
     return event
 
 #Funcion que sube los formatos de prestamo a una carpeta de drive
-def upload_to_folder(name_docx, option):
+def upload_to_folder(name_docx, option,data):
     load_dotenv()
     credentials = getCredentials()
-    hour = datetime.utcnow().strftime('%H-%M-%S')
     try:
         service = build('drive', 'v3', credentials=credentials)
         file_metadata = {
-            'name': f'Formato Auditorio {hour}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
+            'name': f'Formato Auditorio {data["title"] - data["code"]}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
         media = MediaFileUpload(f'BECL_PDB/doc/doc_auditorio/{name_docx}', mimetype='	application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
         file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
-        return file.get("id")
+        #establecemos los permisos 
+        permission = {
+            'type': 'anyone',
+            'role': 'reader',
+            'withLink': True
+        }
+        service.permissions().create(fileId=file.get('id'), body=permission).execute()
+        return service.files().get(fileId=file['id'], fields='webViewLink').execute()['webViewLink']
     except HttpError:
         return HttpResponse("ocurrio un error")
 
@@ -176,10 +180,7 @@ def is_Token_Valid(token):
     decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
     exp_timestamp= decode_token['exp']
     exp_datetime = datetime.fromtimestamp(exp_timestamp)
-    print(exp_datetime)
-    print(colombia_time)
     if colombia_time < exp_datetime:
-        print("Entro en el if de is_valid_token")
         return False
     else:
         return True
