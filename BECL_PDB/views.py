@@ -19,7 +19,7 @@ import json
 import pytz
 
 list_events = []
-list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
 @csrf_exempt
 @require_http_methods(['POST'])
@@ -37,6 +37,7 @@ def events_PDB(request):
             hours_events_24H = stringToInt(hours_events)
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
+            print(ranges)
             answer = generate_possible_end_times(ranges)
             return JsonResponse({'events_hours':answer, 'events':list_event_today})     
         return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
@@ -51,15 +52,18 @@ def schedule_PDB(request):
     title = body.get('title')
     dates = body.get('dates')
     emails = body.get('emails')
+    types = body.get('type')
     try:
         if not is_Token_Valid(token):    
             credentials = getCredentials()
             event = format_event(title, dates, emails)
             service = build('calendar', 'v3', credentials=credentials)
             service.events().insert(calendarId='primary', body=event).execute()
-            name = get_format_document_A("Prueba xd", "Andres", "1152231", "Ingenieria", "8:00 PM", "7:00 AM", "100")
-            file_id = upload_to_folder(name, 'A')
-            return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'url_filed': file_id, 'name_file': name}) 
+            if types != 'BD':
+                name =  get_format_document_A("Prueba xd", "Andres", "1152231", "Ingenieria", dates[0], dates[1], "100") if types == 'A' else get_format_document_S("GIA",'Biblioteca','3219172041','50','Andres Silva','7410',dates[0], dates[1])
+                file_id = upload_to_folder(name, types)
+                return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'urlFile': file_id, 'fileName':name})
+            return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
@@ -89,7 +93,7 @@ def get_format_document_A(title, name, code, dependence, start, end, num_people)
 
 #Funcion la cual crea el documento de apartado de la sala de semilleros
 def get_format_document_S(hotbed, department, phone, num_people, name, code, start, end):
-    doc = DocxTemplate('BECL_PDB/doc/Formato Semillero.docx')
+    doc = DocxTemplate('BECL_PDB/doc/Formato semilleros.docx')
     now = datetime.utcnow()
     
     hour = now.strftime('%H-%M-%S')
@@ -146,17 +150,18 @@ def upload_to_folder(name_docx, option,data):
             'name': f'Formato Auditorio {data["title"] - data["code"]}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        media = MediaFileUpload(f'BECL_PDB/doc/doc_auditorio/{name_docx}', mimetype='	application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
+        media = MediaFileUpload(f'BECL_PDB/doc/doc_auditorio/{name_docx}', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
         file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
-        #establecemos los permisos 
         permission = {
             'type': 'anyone',
             'role': 'reader',
             'withLink': True
         }
+        
         service.permissions().create(fileId=file.get('id'), body=permission).execute()
         return service.files().get(fileId=file['id'], fields='webViewLink').execute()['webViewLink']
     except HttpError:
+        print('error aca en el httperror')
         return HttpResponse("ocurrio un error")
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
@@ -252,14 +257,6 @@ def generate_possible_end_times(ranges):
             hours.append(generate_ranges_hours(i, range_hours[-1]))
     return hours
 
-#Funcion que retorna el inicio del dia
-def todayStart():
-    return datetime.now(pytz.timezone('America/Bogota')).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-
-#Funcion que retorno el fin del dia
-def todayEnd():
-    return datetime.now(pytz.timezone('America/Bogota')).replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
-
 #Funcion para convertirla hora a entero
 def getTimeToInt(time):
     pre_time = time[0:2]
@@ -267,7 +264,8 @@ def getTimeToInt(time):
 
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
-    return filter(lambda event: option in event['summary'][0:3], events)
+    print(events)
+    return filter(lambda event: option in event['summary'][0] , events)
 
 #Funcion que me genera el token
 def getCredentials():

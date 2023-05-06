@@ -1,4 +1,6 @@
 *.pyc
-/venv
+.venv
 .env
+BECL_PDB/doc/doc_auditorio
+BECL_PDB/doc/doc_semillero
 __pycache__/ 
