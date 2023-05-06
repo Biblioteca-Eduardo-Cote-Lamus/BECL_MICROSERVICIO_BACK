@@ -37,7 +37,6 @@ def events_PDB(request):
             hours_events_24H = stringToInt(hours_events)
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
-            print(ranges)
             answer = generate_possible_end_times(ranges)
             return JsonResponse({'events_hours':answer, 'events':list_event_today})     
         return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
@@ -161,7 +160,6 @@ def upload_to_folder(name_docx, option,data):
         service.permissions().create(fileId=file.get('id'), body=permission).execute()
         return service.files().get(fileId=file['id'], fields='webViewLink').execute()['webViewLink']
     except HttpError:
-        print('error aca en el httperror')
         return HttpResponse("ocurrio un error")
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
@@ -264,7 +262,6 @@ def getTimeToInt(time):
 
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
-    print(events)
     return filter(lambda event: option in event['summary'][0] , events)
 
 #Funcion que me genera el token

@@ -9,6 +9,9 @@ class Usuarios (models.Model):
     usuario = models.CharField(max_length=20)
     password = models.CharField(max_length=300)
     
+    def set_password(self, password):
+        self.password = password
+        
     def password_encript(self, password):
         password_nueva = make_password(password)
         self.password = password_nueva
