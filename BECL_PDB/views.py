@@ -8,7 +8,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from .models import Events_DB, Events_P
 from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
 from dotenv import load_dotenv
@@ -37,7 +36,6 @@ def events_PDB(request):
             hours_events_24H = stringToInt(hours_events)
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
-            print(ranges)
             answer = generate_possible_end_times(ranges)
             return JsonResponse({'events_hours':answer, 'events':list_event_today})
         
@@ -50,72 +48,51 @@ def events_PDB(request):
 def schedule_PDB(request):
     body = json.loads(request.body.decode('utf-8'))
     token = body.get('token')
-    title = body.get('title')
-    dates = body.get('dates')
-    emails = body.get('emails')
-    types = body.get('type')
-    print(types)
+    #se extrae toda la información del parametro data que se envia de la request. 
+    calendar = body.get('data')['calendar']
+    support = body.get('data')['support']
     try:
         if not is_Token_Valid(token):    
             credentials = getCredentials()
-            event = format_event(title, dates, emails)
+            #se genera el evento. Se extrae el titulo, fechas, emails y el tipo de evento.
+            event = format_event(calendar['title'], calendar['dates'], calendar['emails'])
             service = build('calendar', 'v3', credentials=credentials)
+            #se agenda el evento. 
             service.events().insert(calendarId='primary', body=event).execute()
-            if types != 'BD':
-                name =  get_format_document_A("Prueba xd", "Andres", "1152231", "Ingenieria", dates[0], dates[1], "100") if types == 'A' else get_format_document_S("GIA",'Biblioteca','3219172041','50','Andres Silva','7410',dates[0], dates[1])
-                file_id = upload_to_folder(name, types)
+            # para generar el formato debe de ser diferente a BD el type enviado en la request
+            if support['type'] != 'BD':
+                name =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
+                file_id = upload_to_folder(name, support['type'],credentials)
                 return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'urlFile': file_id, 'fileName':name})
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
-#Funcion la cual crea el documento de apartado del auditorio
-def get_format_document_A(title, name, code, dependence, start, end, num_people):
-    doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx')
-    now = datetime.utcnow()
     
-    hour = now.strftime('%H-%M-%S')
-    date = now.strftime('%d-%m-%Y')
+
+def get_general_document(date,title,dependece, people, name, code, start, end, typeEvent):
+
+    # Se genera el documento dependiendo del typeEvent
+    doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx') if  typeEvent == 'A' else DocxTemplate('BECL_PDB/doc/formato semilleros.docx')
+    # titulo y semillero pueden ser lo mismo. De igual manera con el departamento y dependencia. 
     data_docx = {
         'fecha': date,
         'titulo': title,
-        'dependencia': dependence,
-        'personas': num_people,
+        'dependencia': dependece ,
+        'personas': people,
         'nombre': name,
         'codigo': code,
         'inicio': start,
         'fin': end,
     }
-    
-    name_docx = f'{hour} Prestamo Auditorio.docx'
+    # se genera la terminacion del formato.
+    loan = 'formato-auditorio' if typeEvent == 'A' else 'formato-semillero'
+    name_docx = f'{date}-{code}-{loan}.docx'
+    folder = f'BECL_PDB/doc/doc_auditorio/{name_docx}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx}'
+    # se renderiza y guarda la data en el documento. 
     doc.render(data_docx)
-    doc.save(f'BECL_PDB/doc/doc_auditorio/{name_docx}')
-    
-    return name_docx
+    doc.save(folder)
 
-#Funcion la cual crea el documento de apartado de la sala de semilleros
-def get_format_document_S(hotbed, department, phone, num_people, name, code, start, end):
-    doc = DocxTemplate('BECL_PDB/doc/Formato semilleros.docx')
-    now = datetime.utcnow()
-    
-    hour = now.strftime('%H-%M-%S')
-    date = now.strftime('%d-%m-%Y')
-    data_docx = {
-        'fecha': date,
-        'semillero': hotbed,
-        'departamento': department,
-        'telefono': phone,
-        'personas': num_people,
-        'nombre': name,
-        'codigo': code,
-        'inicio': start,
-        'fin': end,
-    }
-    
-    name_docx = f'{hour} Prestamo Semillero.docx'
-    doc.render(data_docx)
-    doc.save(name_docx)
-    
     return name_docx
 
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
@@ -124,9 +101,9 @@ def format_event(title,dates,emails):
     start = dates[0]
     end = dates[1]
     event = {
-        'summary': title,
+        'summary': f'{title}',
         'location': '',
-        'description': 'probando',
+        'description': '',
         'start': {
             'dateTime': start,
             'timeZone': 'America/Bogota',
@@ -143,17 +120,17 @@ def format_event(title,dates,emails):
     return event
 
 #Funcion que sube los formatos de prestamo a una carpeta de drive
-def upload_to_folder(name_docx, option):
+def upload_to_folder(name_docx, option, credentials):
     load_dotenv()
-    credentials = getCredentials()
     hour = datetime.utcnow().strftime('%H-%M-%S')
     try:
         service = build('drive', 'v3', credentials=credentials)
         file_metadata = {
-            'name': f'Formato Auditorio {hour}.docx' if option == 'A' else f'Formato Semillero {hour}.docx',
+            'name': f'{hour}-{name_docx}',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        media = MediaFileUpload(f'BECL_PDB/doc/doc_auditorio/{name_docx}', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
+        path = f'BECL_PDB/doc/doc_auditorio/{name_docx}' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx}'
+        media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
         file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
         permission = {
             'type': 'anyone',
@@ -268,7 +245,6 @@ def getTimeToInt(time):
 
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
-    print(events)
     return filter(lambda event: option in event['summary'][0] , events)
 
 #Funcion que me genera el token
