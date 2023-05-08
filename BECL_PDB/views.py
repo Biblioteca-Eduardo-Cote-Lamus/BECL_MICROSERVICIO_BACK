@@ -37,8 +37,7 @@ def events_PDB(request):
             list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
             answer = generate_possible_end_times(ranges)
-            return JsonResponse({'events_hours':answer, 'events':list_event_today})
-        
+            return JsonResponse({'events_hours':answer, 'events':list_event_today})     
         return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
     except jwt.exceptions.InvalidTokenError:
         return JsonResponse({'ok': False})
@@ -139,10 +138,8 @@ def upload_to_folder(name_docx, option, credentials):
         }
         
         service.permissions().create(fileId=file.get('id'), body=permission).execute()
-        print('paso los permissions')
         return service.files().get(fileId=file['id'], fields='webViewLink').execute()['webViewLink']
     except HttpError:
-        print('error aca en el httperror')
         return HttpResponse("ocurrio un error")
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
