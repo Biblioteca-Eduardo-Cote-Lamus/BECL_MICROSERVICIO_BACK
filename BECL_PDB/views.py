@@ -62,8 +62,8 @@ def schedule_PDB(request):
             # para generar el formato debe de ser diferente a BD el type enviado en la request
             if support['type'] != 'BD':
                 name_doc =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
-                file_id = upload_to_folder(name_doc, support['type'],credentials)
-                return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'urlFile': file_id, 'fileName':name_doc})
+                msg = upload_to_folder(name_doc, support['type'],credentials)
+                return JsonResponse({'ok': True,'message': msg})
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
@@ -133,16 +133,10 @@ def upload_to_folder(name_docx, option, credentials):
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
         path = f'BECL_PDB/doc/doc_auditorio_pdf/{name_docx}' if option == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_docx}'
-        media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
+        media = MediaFileUpload(path, mimetype='application/pdf', resumable=True)
+
         file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
-        permission = {
-            'type': 'anyone',
-            'role': 'reader',
-            'withLink': True
-        }
-        
-        service.permissions().create(fileId=file.get('id'), body=permission).execute()
-        return service.files().get(fileId=file['id'], fields='webViewLink').execute()['webViewLink']
+        return "Se subio el archivo de manera correcta."
     except HttpError:
         return HttpResponse("ocurrio un error")
 
