@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse, HttpResponse
+from django.http import FileResponse, JsonResponse, HttpResponse
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -15,11 +15,12 @@ import os
 import os.path
 import jwt
 import json
-import pytz
+from docx2pdf import convert
+import pythoncom
 
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-
+name_doc = ''
 @csrf_exempt
 @require_http_methods(['POST'])
 def events_PDB(request):
@@ -60,9 +61,9 @@ def schedule_PDB(request):
             service.events().insert(calendarId='primary', body=event).execute()
             # para generar el formato debe de ser diferente a BD el type enviado en la request
             if support['type'] != 'BD':
-                name =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
-                file_id = upload_to_folder(name, support['type'],credentials)
-                return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'urlFile': file_id, 'fileName':name})
+                name_doc =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
+                file_id = upload_to_folder(name_doc, support['type'],credentials)
+                return JsonResponse({'ok': True,'message': '¡El evento fue agendado con exito!', 'urlFile': file_id, 'fileName':name_doc})
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
@@ -70,7 +71,7 @@ def schedule_PDB(request):
     
 
 def get_general_document(date,title,dependece, people, name, code, start, end, typeEvent):
-
+    pythoncom.CoInitialize()
     # Se genera el documento dependiendo del typeEvent
     doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx') if  typeEvent == 'A' else DocxTemplate('BECL_PDB/doc/formato semilleros.docx')
     # titulo y semillero pueden ser lo mismo. De igual manera con el departamento y dependencia. 
@@ -86,13 +87,16 @@ def get_general_document(date,title,dependece, people, name, code, start, end, t
     }
     # se genera la terminacion del formato.
     loan = 'formato-auditorio' if typeEvent == 'A' else 'formato-semillero'
-    name_docx = f'{date}-{code}-{loan}.docx'
-    folder = f'BECL_PDB/doc/doc_auditorio/{name_docx}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx}'
+    name_file = f'{date}-{code}-{title}-{loan}'
+    folder = f'BECL_PDB/doc/doc_auditorio/{name_file}.docx' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero/{name_file}.docx'
+    folderPDf = f'BECL_PDB/doc/doc_auditorio_pdf/{name_file}.pdf' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_file}.pdf'
     # se renderiza y guarda la data en el documento. 
     doc.render(data_docx)
     doc.save(folder)
+    convert(folder,  folderPDf)
+    pythoncom.CoUninitialize()
 
-    return name_docx
+    return f'{name_file}.pdf'
 
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
 def format_event(title,dates,emails):
@@ -128,7 +132,7 @@ def upload_to_folder(name_docx, option, credentials):
             'name': f'{hour}-{name_docx}',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        path = f'BECL_PDB/doc/doc_auditorio/{name_docx}' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx}'
+        path = f'BECL_PDB/doc/doc_auditorio_pdf/{name_docx}' if option == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_docx}'
         media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True)
         file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
         permission = {
@@ -243,6 +247,22 @@ def getTimeToInt(time):
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
     return filter(lambda event: option in event['summary'][0] , events)
+
+#Función para devolver el formato en caso de que se haya generado. 
+@csrf_exempt
+@require_http_methods(['POST'])
+def download_document(request):
+    body = json.loads(request.body.decode('utf-8')) 
+    name = body['name']
+    typeEvent = body['type']
+    filename = f'BECL_PDB/doc/doc_auditorio_pdf/{name}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name}'
+    fullpath = os.path.join(filename) 
+    if os.path.exists(fullpath):
+        response = FileResponse(open(fullpath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response['Content-Disposition'] = f'attachment; filename="{name_doc}"'
+        return response
+    else:
+        return JsonResponse({'ok': False, 'msg':'El documento no existe.'})
 
 #Funcion que me genera el token
 def getCredentials():
