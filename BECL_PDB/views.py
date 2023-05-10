@@ -132,10 +132,9 @@ def upload_to_folder(name_docx, option, credentials):
             'name': f'{hour}-{name_docx}',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        path = f'BECL_PDB/doc/doc_auditorio_pdf/{name_docx}' if option == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_docx}'
-        media = MediaFileUpload(path, mimetype='application/pdf', resumable=True)
-
-        file = service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
+        path = f'BECL_PDB/doc/doc_auditorio/{name_docx[0:-4]}.docx' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx[0:-4]}.docx'
+        media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True) 
+        service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
         return "Se subio el archivo de manera correcta."
     except HttpError:
         return HttpResponse("ocurrio un error")
@@ -232,11 +231,6 @@ def generate_possible_end_times(ranges):
         for i in lists:
             hours.append(generate_ranges_hours(i, range_hours[-1]))
     return hours
-
-#Funcion para convertirla hora a entero
-def getTimeToInt(time):
-    pre_time = time[0:2]
-    return int(pre_time[1]) if pre_time[0] == '0' else int(pre_time)
 
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
