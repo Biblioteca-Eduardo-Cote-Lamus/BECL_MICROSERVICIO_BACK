@@ -1,0 +1,90 @@
+* {
+    background: #fff;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
+
+.container {
+    height: auto;
+    width: 561px;
+}
+
+.waves {
+    margin-bottom: 3rem;
+}
+
+.logoBecl {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 5rem;
+}
+
+.body-message {
+    text-align: center;
+}
+
+.body-message h1 {
+    color: rgb(140,3,3);
+    font-size: 46px;
+}
+
+.body-message h4 {
+    color: #000;
+    font-weight: lighter;
+    font-size: 16px;
+}
+
+.body-message p {
+    color: #000;
+    font-weight: lighter;
+    font-size: 16px;
+    text-align: justify;
+}
+
+.body-message p b {
+    color: rgb(140,3,3);
+    font-size: 18px;
+}
+
+.body-message ul li {
+    text-align: left;
+}
+
+.footer {
+    display: flex;
+    text-align: justify;
+}
+
+.content-footer {
+    margin-top: 70px;
+    margin-bottom: 50px;
+}
+
+.footer-info-social {
+    display: inline-block;
+}
+
+.footer-info {
+    color: #666;
+    font-weight: bold;
+    margin-left: 30px;
+}
+
+.footer-info b {
+    color: #000;
+}
+
+.footer-social {
+    margin-left: 30px;
+}
+
+.footer-social  ul li{
+    list-style: none;
+    margin-left: -40px;
+    padding-bottom: 10px;
+}
+
+.bar {
+    background: rgb(140,3,3);
+    height: 46px;
+}
