@@ -3,4 +3,6 @@
 .env
 BECL_PDB/doc/doc_auditorio
 BECL_PDB/doc/doc_semillero
+BECL_PDB/doc/doc_auditorio_pdf
+BECL_PDB/doc/doc_semillero_pdf
 __pycache__/ 

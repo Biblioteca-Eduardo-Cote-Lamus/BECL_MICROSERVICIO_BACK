@@ -20,7 +20,6 @@ import pythoncom
 
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
-name_doc = ''
 @csrf_exempt
 @require_http_methods(['POST'])
 def events_PDB(request):
@@ -63,7 +62,7 @@ def schedule_PDB(request):
             if support['type'] != 'BD':
                 name_doc =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
                 msg = upload_to_folder(name_doc, support['type'],credentials)
-                return JsonResponse({'ok': True,'message': msg})
+                return JsonResponse({'ok': True,'message': msg, 'nameFile': name_doc})
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
     except jwt.exceptions.ExpiredSignatureError:
@@ -242,12 +241,14 @@ def filterByOption(events,option):
 def download_document(request):
     body = json.loads(request.body.decode('utf-8')) 
     name = body['name']
+    print(name)
     typeEvent = body['type']
     filename = f'BECL_PDB/doc/doc_auditorio_pdf/{name}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name}'
     fullpath = os.path.join(filename) 
     if os.path.exists(fullpath):
-        response = FileResponse(open(fullpath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = f'attachment; filename="{name_doc}"'
+        # response = FileResponse(open(fullpath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response = FileResponse(open(fullpath, 'rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{name}"'
         return response
     else:
         return JsonResponse({'ok': False, 'msg':'El documento no existe.'})
