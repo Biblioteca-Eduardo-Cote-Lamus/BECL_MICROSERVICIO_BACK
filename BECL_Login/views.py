@@ -7,12 +7,16 @@ from django.http import JsonResponse
 from django.conf import settings
 from datetime import datetime, timedelta
 from .models import Usuarios
+from dotenv import load_dotenv
+import os
 import pytz
 import jwt
 import json
 import pyotp
 import time
 import re
+
+load_dotenv()
 
 @csrf_exempt
 @require_http_methods(['POST'])
@@ -44,8 +48,7 @@ def forgot_password(request):
             #Genero el token de cambiar contraseña
             token = generate_forgot_token(user.codigo)
             #Creo el digo de verificacion para la contraseña
-            secret_key = pyotp.random_base32()
-            totp = pyotp.TOTP(secret_key, interval=30)
+            totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=30)
             code = totp.now()
             print(f'Codigo: {code}')
             #Diccionario con los datos que le paso a la plantilla
@@ -75,12 +78,17 @@ def forgot_password(request):
 @require_http_methods(['POST'])
 def valid_code(request):
     body = json.loads(request.body.decode('utf-8'))
-    code_very = body.get('codeVery')
+    code_very = int(body.get('codeVery'))
     token = body.get('token')
-    secret_key = pyotp.random_base32()
-    totp = pyotp.TOTP(secret_key, interval=30)
-    if totp.verify(code_very) and not is_Token_Valid(token):
-        return JsonResponse({'ok': True, 'message': 'Codigo verificado'})
+    totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=30)
+    try:
+        if not is_Token_Valid(token) and totp.verify(code_very):
+            return JsonResponse({'ok': True, 'message': 'Codigo verificado'})
+        return JsonResponse({'ok': True})
+    except jwt.exceptions.ExpiredSignatureError:
+        return JsonResponse({'ok': False, 'message': 'El token a expirado'})
+    except jwt.exceptions.InvalidSignatureError:
+        return JsonResponse({'ok': False, 'message': 'El token es invalido'})
 
 @csrf_exempt
 @require_http_methods(['POST'])
