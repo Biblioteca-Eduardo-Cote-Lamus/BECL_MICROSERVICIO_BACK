@@ -65,10 +65,11 @@ def schedule_PDB(request):
                 name_doc =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
                 msg = upload_to_folder(name_doc, support['type'],credentials)
                 # enviamos el correo con el soporte por si acaso
-                sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type'],name_doc)
+                sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type'],name_doc)    
                 service.close()
                 return JsonResponse({'ok': True,'message': msg, 'nameFile': name_doc})
             
+            sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type']) 
             service.close()
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         
@@ -77,14 +78,12 @@ def schedule_PDB(request):
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'}); service.close()
     
 
-def sendEmialEvent(day, hours, email, type, doc):
+def sendEmialEvent(day, hours, email, type, doc=''):
     
     context = {
         'day': day,
         'hour': hours
     }
-
-    print(day)
 
     subjects = subject(type)
 
@@ -97,7 +96,7 @@ def sendEmialEvent(day, hours, email, type, doc):
         'andresalexanderss@ufps.edu.co',
         email
     )
-    
+
     #se adjunta el archivo
     if(type == 'S' or type == 'A'):
         pathDoc = f'BECL_PDB/doc/doc_semillero_pdf/{doc}' if type == 'S' else f'BECL_PDB/doc/doc_auditorio_pdf/{doc}'
