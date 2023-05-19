@@ -1,3 +1,6 @@
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -32,12 +35,11 @@ def events_PDB(request):
     try:
         if not is_Token_Valid(token):
             list_event_today = events_today(service,date[0],date[1],type_event)
-            hours_events = realization_events(list_event_today)
-            hours_events_24H = stringToInt(hours_events)
-            list_possible_hours = possible_hours(hours_events_24H,list_hours_today.copy())
+            list_possible_hours = possible_hours(list_event_today,list_hours_today.copy())
             ranges = generate_ranges(list_possible_hours)
             answer = generate_possible_end_times(ranges)
-            return JsonResponse({'events_hours':answer, 'events':list_event_today})     
+            service.close()
+            return JsonResponse({'events_hours':answer})     
         return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
     except jwt.exceptions.InvalidTokenError:
         return JsonResponse({'ok': False})
@@ -62,12 +64,60 @@ def schedule_PDB(request):
             if support['type'] != 'BD':
                 name_doc =  get_general_document(support['date'], support['title'], support['dependence'], support['people'], support['name'], support['code'], support['hours'][0], support['hours'][1], support['type'])
                 msg = upload_to_folder(name_doc, support['type'],credentials)
+                # enviamos el correo con el soporte por si acaso
+                sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type'],name_doc)
+                service.close()
                 return JsonResponse({'ok': True,'message': msg, 'nameFile': name_doc})
+            
+            service.close()
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
-        return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'})
+        
+        return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'}); service.close()
     except jwt.exceptions.ExpiredSignatureError:
-        return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
+        return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'}); service.close()
     
+
+def sendEmialEvent(day, hours, email, type, doc):
+    
+    context = {
+        'day': day,
+        'hour': hours
+    }
+
+    print(day)
+
+    subjects = subject(type)
+
+    html_template = render_to_string(subjects[1], context)
+    text_template = strip_tags(html_template)
+    #Creo un objeto EmailMultiAlternatives para enviar el correo electronico
+    mail = EmailMultiAlternatives(
+        subjects[0],
+        text_template,
+        'andresalexanderss@ufps.edu.co',
+        email
+    )
+    
+    #se adjunta el archivo
+    if(type == 'S' or type == 'A'):
+        pathDoc = f'BECL_PDB/doc/doc_semillero_pdf/{doc}' if type == 'S' else f'BECL_PDB/doc/doc_auditorio_pdf/{doc}'
+        with open(pathDoc, 'rb') as f:
+            mail.attach('soporte-prestamo.pdf', f.read(), 'application/pdf')
+
+    #Agrego la plantilla HTML como un contenido alternativo al correo electronico
+    mail.attach_alternative(html_template, 'text/html')
+    mail.send()
+
+
+def subject(type):
+    subjects = {
+        'A': ['Préstamo Auditorio', 'plantilla_auditorio.html'],
+        'S': ['Préstamo Sala de Semilleros', 'plantilla_semillero.html'],
+        'BD': ['Capacitación Base de Datos.', 'plantilla_capacitacion.html']
+    }
+    return subjects[type]
+    
+
 
 def get_general_document(date,title,dependece, people, name, code, start, end, typeEvent):
     pythoncom.CoInitialize()
@@ -134,6 +184,7 @@ def upload_to_folder(name_docx, option, credentials):
         path = f'BECL_PDB/doc/doc_auditorio/{name_docx[0:-4]}.docx' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx[0:-4]}.docx'
         media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True) 
         service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
+        service.close()
         return "Se subio el archivo de manera correcta."
     except HttpError:
         return HttpResponse("ocurrio un error")
@@ -151,6 +202,7 @@ def events_today(service, start, end, option):
     events_result = service.events().list(calendarId='primary', timeMin=start, timeMax=end, singleEvents=True, orderBy='startTime').execute()
     list_events = events_result.get('items',[])
     list_events = list(filterByOption(list_events, option))
+    list_events = realization_events(list_events)
     return list_events
 
 #Funcion que valida que el token este activo
@@ -170,9 +222,9 @@ def realization_events(list_event):
     for event in list_event:
         start = event['start'].get('dateTime', event['start'].get('date'))
         end = event['end'].get('dateTime', event['end'].get('date'))
-        start_time = datetime.fromisoformat(start).strftime('%I:%M %p')
-        end_time = datetime.fromisoformat(end).strftime('%I:%M %p')
-        list_hours_events.append([start_time,end_time])
+        start_time =  datetime.strptime( datetime.fromisoformat(start).strftime('%I:%M %p'), '%I:%M %p' ).strftime('%H')
+        end_time =  datetime.strptime( datetime.fromisoformat(end).strftime('%I:%M %p'), '%I:%M %p' ).strftime('%H')
+        list_hours_events.append([int(start_time),int(end_time)])
     return list_hours_events
 
 #Funcion que convierte de unformato de Hora 00:00 PM/AM a formato de 24H
@@ -233,7 +285,7 @@ def generate_possible_end_times(ranges):
 
 #Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
 def filterByOption(events,option):
-    return filter(lambda event: option in event['summary'][0] , events)
+    return filter(lambda event: option in event['summary'].split(':')[0] , events)
 
 #Función para devolver el formato en caso de que se haya generado. 
 @csrf_exempt
@@ -241,7 +293,6 @@ def filterByOption(events,option):
 def download_document(request):
     body = json.loads(request.body.decode('utf-8')) 
     name = body['name']
-    print(name)
     typeEvent = body['type']
     filename = f'BECL_PDB/doc/doc_auditorio_pdf/{name}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name}'
     fullpath = os.path.join(filename) 

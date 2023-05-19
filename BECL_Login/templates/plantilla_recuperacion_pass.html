@@ -8,15 +8,13 @@
         * {
             background: #FFF;
             font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-        }
-        
-        .container {
-            height: auto;
-            width: 561px;
+            box-sizing: border-box;
         }
         
         .waves {
+            width: 100%;
             margin-bottom: 3rem;
+            
         }
         
         .logoBecl {
@@ -39,7 +37,6 @@
             color: #000;
             font-weight: lighter;
             font-size: 16px;
-            text-align: justify;
         }
         
         .code {
@@ -91,49 +88,95 @@
             background: rgb(140,3,3);
             height: 43px;
         }
+
+        .container-general{
+            background: rgba(228, 242, 250, 0.3);
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .code-container{
+            background-color: #ffddd2;
+            display: flex;
+            justify-content: space-around;
+            padding: 1rem;
+            border-radius: 8px;
+            width: min-content;
+            margin: auto;
+
+        }
+
+        .code-char{
+           border-bottom: 1px solid #000;
+           margin: .5em;
+           padding: 1em;
+           border-top-right-radius: 8px;
+           border-top-left-radius: 8px;
+        }
+
+        .code-char span {
+            display: inline-block;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .logo{
+            width: 210px;
+            margin: auto;
+        }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <img src="https://www.dropbox.com/s/skp9lqqv3vjv19k/waves.png?dl=1" width="561" class="waves" alt="wave">
-            <div class="logoBecl">
-                <img src="https://www.dropbox.com/s/ftvymivw8gfj08y/logo_Becl.png?dl=1" width="210" alt="logoBecl">
-            </div>
-        </div>
-        <div class="message">
-            <h1>Recuperación de Contraseña</h1>
-            <P>Por favor ingrese el siguiente codigo de verificación para cambiar su contraseña.</P>
-            <b class="code">{{code_very}}</b>
-            <p>
-                Le agradecemos por favor que anote o guarde la contraseña nueva para que no tenga que volver a cambiarla.
-                <br><br>
-                Le deseamos un exelenete dia. <b>Siendo Amables Sabiendo.</b>
-            </p>
-        </div>
-        <div class="footer">
-            <div class="content-footer">
-                <img src="https://www.dropbox.com/s/ftvymivw8gfj08y/logo_Becl.png?dl=1" width="131" alt="logoBECL">
-            </div>
-            <div class="info-social">
-                <div class="info">
-                    <p>
-                        TIC'S, Biblioteca Eduardo Cote Lamus<br>
-                        <b>Andres Silva, Angel Garcia</b>
-                    </p>
-                </div>
-                <div class="social">
-                    <ul>
-                        <li><img src="https://www.dropbox.com/s/t691zdagl0js7r2/phone.png?dl=1" width="15" alt="phone"> 607 5776655 ext. 130 136</li>
-                        <li><img src="https://www.dropbox.com/s/d2b2fw4stz6gsz2/web.png?dl=1" width="15" alt="web"> http://biblioteca.ufps.edu.co</li>
-                        <li><img src="https://www.dropbox.com/s/2m6cpn9cx2kef74/email.png?dl=1" width="15" alt="email"> andresalexanderss@ufps.edu.co</li>
-                        <li><img src="https://www.dropbox.com/s/2m6cpn9cx2kef74/email.png?dl=1" width="15" alt="email"> angelgabrielgara@ufps.edu.co</li>
-                        <li><img src="https://www.dropbox.com/s/exuoqu1elp97mzk/place.png?dl=1" width="15" alt="place"> Cucuta, Colombia</li>
-                    </ul>
+    <div class="container-general">
+        <div class="container">
+            <div class="header">
+                <img src="https://www.dropbox.com/s/skp9lqqv3vjv19k/waves.png?dl=1" class="waves" alt="wave">
+                <div class="logoBecl">
+                    <img src="https://www.dropbox.com/s/ftvymivw8gfj08y/logo_Becl.png?dl=1" class="logo" alt="logoBecl">
                 </div>
             </div>
+            <div class="message">
+                <h1>Recuperación de Contraseña</h1>
+                <P>Por favor ingrese el siguiente codigo de verificación para cambiar su contraseña.</P>
+                <div class="code-container" style="justify-content: center;">
+                    {% for char in code_very %}
+                    <div class="code-char">
+                        <span>{{ char }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+ 
+                <p>
+                    Le agradecemos por favor que anote o guarde la contraseña nueva para que no tenga que volver a cambiarla.
+                    <br><br>
+                    Le deseamos un exelenete dia. <b>Siendo Amables Sabiendo.</b>
+                </p>
+            </div>
+            <div class="footer">
+                <div class="content-footer">
+                    <img src="https://www.dropbox.com/s/ftvymivw8gfj08y/logo_Becl.png?dl=1" width="131" alt="logoBECL">
+                </div>
+                <div class="info-social">
+                    <div class="info">
+                        <p>
+                            TIC'S, Biblioteca Eduardo Cote Lamus<br>
+                            <b>Andres Silva, Angel Garcia</b>
+                        </p>
+                    </div>
+                    <div class="social">
+                        <ul>
+                            <li><img src="https://www.dropbox.com/s/t691zdagl0js7r2/phone.png?dl=1" width="15" alt="phone"> 607 5776655 ext. 130 136</li>
+                            <li><img src="https://www.dropbox.com/s/d2b2fw4stz6gsz2/web.png?dl=1" width="15" alt="web"> http://biblioteca.ufps.edu.co</li>
+                            <li><img src="https://www.dropbox.com/s/2m6cpn9cx2kef74/email.png?dl=1" width="15" alt="email"> andresalexanderss@ufps.edu.co</li>
+                            <li><img src="https://www.dropbox.com/s/2m6cpn9cx2kef74/email.png?dl=1" width="15" alt="email"> angelgabrielgara@ufps.edu.co</li>
+                            <li><img src="https://www.dropbox.com/s/exuoqu1elp97mzk/place.png?dl=1" width="15" alt="place"> Cucuta, Colombia</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="bar"></div>
         </div>
-        <div class="bar"></div>
     </div>
 </body>
 </html>

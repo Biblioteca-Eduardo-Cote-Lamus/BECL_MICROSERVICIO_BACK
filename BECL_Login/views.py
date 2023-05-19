@@ -9,11 +9,9 @@ from datetime import datetime, timedelta
 from .models import Usuarios
 from dotenv import load_dotenv
 import os
-import pytz
 import jwt
 import json
 import pyotp
-import time
 import re
 
 load_dotenv()
@@ -48,12 +46,11 @@ def forgot_password(request):
             #Genero el token de cambiar contraseña
             token = generate_forgot_token(user.codigo)
             #Creo el digo de verificacion para la contraseña
-            totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=30)
+            totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=59)
             code = totp.now()
-            print(f'Codigo: {code}')
             #Diccionario con los datos que le paso a la plantilla
             context = {
-                'code_very': code,
+                'code_very': f'{code}',
             }
             #Renderiza la plantilla del email con los datos necesarios
             html_template = render_to_string('plantilla_recuperacion_pass.html', context)
@@ -80,7 +77,7 @@ def valid_code(request):
     body = json.loads(request.body.decode('utf-8'))
     code_very = int(body.get('codeVery'))
     token = body.get('token')
-    totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=30)
+    totp = pyotp.TOTP(os.getenv('SECRET_KEY_P'), interval=59)
     try:
         if not is_Token_Valid(token) and totp.verify(code_very):
             return JsonResponse({'ok': True, 'message': 'Codigo verificado'})
