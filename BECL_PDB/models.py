@@ -10,6 +10,8 @@ class Events_P(models.Model):
     hora_inicio = models.CharField(max_length=20)
     hora_final = models.CharField(max_length=20)
     asistente = models.IntegerField()
+    observaciones = models.TextField(blank=True)
+    entrega = models.BooleanField(default=False)
     
     def __str__(self):
         return self.titulo + "," + self.fecha + "," + self.hora_inicio + "," + self.hora_final + "," + self.asistente

@@ -66,18 +66,34 @@ def schedule_PDB(request):
                 msg = upload_to_folder(name_doc, support['type'],credentials)
                 # enviamos el correo con el soporte por si acaso
                 sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type'],name_doc)    
-                service.close()
                 return JsonResponse({'ok': True,'message': msg, 'nameFile': name_doc})
             
             sendEmialEvent(support['date'],support['hours'],calendar['emails'],support['type']) 
-            service.close()
             return JsonResponse({'ok': True, 'message': 'Evento agendado'})
         
         return JsonResponse({'ok': False,'message': '¡Ocurrio un error!'}); service.close()
     except jwt.exceptions.ExpiredSignatureError:
-        return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'}); service.close()
-    
+        return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'});
+    finally:
+        service.close()
 
+#Función para devolver el formato en caso de que se haya generado. 
+@csrf_exempt
+@require_http_methods(['POST'])
+def download_document(request):
+    body = json.loads(request.body.decode('utf-8')) 
+    name = body['name']
+    typeEvent = body['type']
+    filename = f'BECL_PDB/doc/doc_auditorio_pdf/{name}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name}'
+    fullpath = os.path.join(filename) 
+    if os.path.exists(fullpath):
+        # response = FileResponse(open(fullpath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        response = FileResponse(open(fullpath, 'rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{name}"'
+        return response
+    else:
+        return JsonResponse({'ok': False, 'msg':'El documento no existe.'})
+    
 def sendEmialEvent(day, hours, email, type, doc=''):
     
     context = {
@@ -286,22 +302,6 @@ def generate_possible_end_times(ranges):
 def filterByOption(events,option):
     return filter(lambda event: option in event['summary'].split(':')[0] , events)
 
-#Función para devolver el formato en caso de que se haya generado. 
-@csrf_exempt
-@require_http_methods(['POST'])
-def download_document(request):
-    body = json.loads(request.body.decode('utf-8')) 
-    name = body['name']
-    typeEvent = body['type']
-    filename = f'BECL_PDB/doc/doc_auditorio_pdf/{name}' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name}'
-    fullpath = os.path.join(filename) 
-    if os.path.exists(fullpath):
-        # response = FileResponse(open(fullpath, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response = FileResponse(open(fullpath, 'rb'), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{name}"'
-        return response
-    else:
-        return JsonResponse({'ok': False, 'msg':'El documento no existe.'})
 
 #Funcion que me genera el token
 def getCredentials():
