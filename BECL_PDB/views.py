@@ -19,7 +19,6 @@ import os.path
 import jwt
 import json
 from docx2pdf import convert
-import pythoncom
 
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
@@ -135,7 +134,6 @@ def subject(type):
 
 
 def get_general_document(date,title,dependece, people, name, code, start, end, typeEvent):
-    pythoncom.CoInitialize()
     # Se genera el documento dependiendo del typeEvent
     doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx') if  typeEvent == 'A' else DocxTemplate('BECL_PDB/doc/formato semilleros.docx')
     # titulo y semillero pueden ser lo mismo. De igual manera con el departamento y dependencia. 
@@ -158,7 +156,6 @@ def get_general_document(date,title,dependece, people, name, code, start, end, t
     doc.render(data_docx)
     doc.save(folder)
     convert(folder,  folderPDf)
-    pythoncom.CoUninitialize()
 
     return f'{name_file}.pdf'
 
