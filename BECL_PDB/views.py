@@ -51,26 +51,19 @@ def events_PDB(request):
 @require_http_methods(['POST'])
 def schedule_PDB(request):
     body = json.loads(request.body.decode('utf-8'))
-    headers = request.META
     token = request.headers.get('Authorization')
     #se extrae toda la información del parametro data que se envia de la request. 
     support = body.get('data')['support']
     try:
-        if not is_Token_Valid(token):
-            user = Usuarios.objects.get(codigo=support['code'])
-            por_revisar = Estado(por_revisar=True)
-            por_revisar.save()
-            if support['type'] == 'A' or support['type'] == 'S':
-                evento = Eventos(usuario=user, estado=por_revisar, fecha=support['date'], fecha_registro="Hoy", dependencia=support['dependence'],
-                                inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],
-                                encargados=support['managers'],observaciones=support['observations'],url_formato="")
-                evento.save()
-            elif support['type'] == 'DB':
-                evento = Eventos(usuario=user, estado=por_revisar, fecha=support['date'], fecha_registro="Hoy", dependencia=support['dependence'],
-                                inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],
-                                encargados="",observaciones="",url_formato="",)
-                evento.save()                
-            return JsonResponse({'ok':True, 'message':'Se ha guardado el evento'})
+        # if not is_Token_Valid(token):
+        user = Usuarios.objects.get(codigo=support['code'])
+        estado = Estado.objects.get(id=1)
+
+        evento = Eventos(usuario=user, estado=estado, fecha=support['date'], dependencia=support['dependence'],
+                        inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],
+                        encargados=support['managers'],observaciones=support['observations'],url_formato="")
+        evento.save()             
+        return JsonResponse({'ok':True, 'message':'Se ha guardado el evento'})
     except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
 

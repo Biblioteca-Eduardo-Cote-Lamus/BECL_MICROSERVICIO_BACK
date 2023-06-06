@@ -6,7 +6,7 @@ class Eventos(models.Model):
     usuario = models.ForeignKey(Usuarios, on_delete=models.CASCADE, null=False, blank=False, related_name="users_event")
     estado = models.ForeignKey(Estado, on_delete=models.CASCADE, null=False, blank=False, related_name="state_event")
     fecha = models.CharField(max_length=50)
-    fecha_registro = models.CharField(max_length=50)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
     dependencia = models.CharField(max_length=150)
     inicio = models.CharField(max_length=20)
     final = models.CharField(max_length=20)

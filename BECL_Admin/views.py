@@ -12,10 +12,11 @@ import json
 @csrf_exempt
 @api_view(["GET"])
 def get_list_events_to_accept(request):
-    if request.method == "GET":
-        list_events = Eventos.objects.filter(estado__por_revisar=True)
-        event_serializers = EventosSerializers(list_events, many=True)
-        return Response(event_serializers.data)
+    filterId = request.GET.get('filterId')
+    if filterId is None: 
+        filterId = 1
+    event_serializers = EventosSerializers(Eventos.objects.filter(estado_id=filterId), many=True)
+    return Response(event_serializers.data)
     
 @csrf_exempt
 @api_view(["PUT"])
@@ -23,15 +24,16 @@ def approve_event(request):
     body = json.loads(request.body.decode('utf-8'))
     header = request.META
     token = request.header.get('Authorization')
-    state = body.get('state')
-    pk = body.get('id_event')
+    state = int(body.get('state'))
+    pk = int(body.get('id_event'))
 
     try:
         if not is_Token_Valid(token):
-            event = Eventos.objects.filter(id=pk).first()
-            if event:
-                event.estado.aceptado = state
-                event_serializers = EventosSerializers(event)
+            event = Eventos.objects.get(id=pk)
+            event.estado_id = state
+            event.save()
+        return Response({'message': 'Evento Actualizado'}, status=status.HTTP_200_OK)
+
     except jwt.exceptions.ExpiredSignatureError:
         return Response({'message':'Token Expirado'}, status= status.HTTP_400_BAD_REQUEST)
     
