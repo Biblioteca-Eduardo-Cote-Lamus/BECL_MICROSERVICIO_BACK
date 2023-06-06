@@ -6,4 +6,3 @@ urlpatterns = [
     path('schedule_PDB/', schedule_PDB, name='schedule_pdb'),
     path('download/', download_document, name='download_document')
 ]
-

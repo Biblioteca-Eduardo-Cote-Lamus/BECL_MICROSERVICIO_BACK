@@ -32,8 +32,7 @@ def login_view(request):
                 return JsonResponse({'error': 'Credenciales Invalidas', 'ok': False})
         except Usuarios.DoesNotExist:
             return JsonResponse({'error': 'El Usuario no existe', 'ok': False})
-        
-#TODO:Terminar de hacer esta vista 
+ 
 @csrf_exempt
 @require_http_methods(['POST'])
 def forgot_password(request):

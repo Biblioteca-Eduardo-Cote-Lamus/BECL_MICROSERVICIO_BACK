@@ -37,14 +37,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'BECL_Login',
     'BECL_PDB',
     'corsheaders',
+    'BECL_Admin',
 ]
 
 ALLOWED_HOSTS = [
     '192.168.2.172',
     '192.168.2.178',
+    '127.0.0.1',
     'localhost',
 ]
 

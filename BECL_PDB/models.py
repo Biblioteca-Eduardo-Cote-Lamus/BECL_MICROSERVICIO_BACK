@@ -1,30 +1,18 @@
 from django.db import models
 from BECL_Login.models import Usuarios
+from BECL_Admin.models import Estado
 
-# Create your models here.
-class Events_P(models.Model):
-    id = models.BigIntegerField(primary_key=True)
-    codigo_user = models.ForeignKey(Usuarios, on_delete=models.CASCADE, null=False, blank=False, related_name="users_event")
-    titulo = models.CharField(max_length=150)
+class Eventos(models.Model):
+    usuario = models.ForeignKey(Usuarios, on_delete=models.CASCADE, null=False, blank=False, related_name="users_event")
+    estado = models.ForeignKey(Estado, on_delete=models.CASCADE, null=False, blank=False, related_name="state_event")
     fecha = models.CharField(max_length=50)
-    hora_inicio = models.CharField(max_length=20)
-    hora_final = models.CharField(max_length=20)
-    asistente = models.IntegerField()
-    observaciones = models.TextField(blank=True)
-    entrega = models.BooleanField(default=False)
-    
-    def __str__(self):
-        return self.titulo + "," + self.fecha + "," + self.hora_inicio + "," + self.hora_final + "," + self.asistente
-    
-
-class Events_DB(models.Model):
-    id = models.BigIntegerField(primary_key=True)
-    codigo_user = models.ForeignKey(Usuarios, on_delete=models.CASCADE,  null=False, blank=False, related_name="users_db")
+    fecha_registro = models.CharField(max_length=50)
+    dependencia = models.CharField(max_length=150)
+    inicio = models.CharField(max_length=20)
+    final = models.CharField(max_length=20)
     titulo = models.CharField(max_length=150)
-    fecha = models.CharField(max_length=50)
-    hora_inicio = models.CharField(max_length=20)
-    hora_final = models.CharField(max_length=20)
-    asistente = models.IntegerField()
-    
-    def __str__(self):
-        return self.titulo + "," + self.fecha + "," + self.hora_inicio + "," + self.hora_final + "," + self.asistente
+    cantidad_personas = models.IntegerField()
+    tipo = models.CharField(max_length=10)
+    encargados = models.TextField(blank=True, null=True)
+    observaciones = models.TextField(blank=True, null=True)
+    url_formato = models.CharField(blank=True, max_length=150)
