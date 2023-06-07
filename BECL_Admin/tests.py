@@ -1,3 +1,5 @@
-from django.test import TestCase
+from BECL_PDB.models import Eventos
 
-# Create your tests here.
+event = Eventos.objects.get(id=3)
+emails = event.encargados
+print(event[0])
