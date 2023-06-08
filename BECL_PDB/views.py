@@ -12,6 +12,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from datetime import datetime, timedelta
+from docx2pdf import convert
 from docxtpl import DocxTemplate
 from dotenv import load_dotenv
 from .models import Eventos
@@ -21,7 +22,7 @@ import os
 import os.path
 import jwt
 import json
-from docx2pdf import convert
+import pywin32_system32
 
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
@@ -55,14 +56,14 @@ def schedule_PDB(request):
     #se extrae toda la información del parametro data que se envia de la request. 
     support = body.get('data')['support']
     try:
-        # if not is_Token_Valid(token):
-        user = Usuarios.objects.get(codigo=support['code'])
-        estado = Estado.objects.get(id=1)
+        if not is_Token_Valid(token):
+            user = Usuarios.objects.get(codigo=support['code'])
+            estado = Estado.objects.get(id=1)
 
-        evento = Eventos(usuario=user, estado=estado, fecha=support['date'], dependencia=support['dependence'],
-                        inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],
-                        encargados=support['managers'],observaciones=support['observations'],url_formato="")
-        evento.save()             
+            evento = Eventos(usuario=user, estado=estado, fecha=support['date'], dependencia=support['dependence'],
+                            inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],
+                            encargados=support['managers'],observaciones=support['observations'],url_formato="")
+            evento.save()             
         return JsonResponse({'ok':True, 'message':'Se ha guardado el evento'})
     except jwt.exceptions.ExpiredSignatureError:
         return JsonResponse({'ok': False,'message': '!El evento no se pudo agendar¡'})
@@ -113,7 +114,6 @@ def sendEmialEvent(day, hours, email, type, doc=''):
     mail.attach_alternative(html_template, 'text/html')
     mail.send()
 
-
 def subject(type):
     subjects = {
         'A': ['Préstamo Auditorio', 'plantilla_auditorio.html'],
@@ -122,8 +122,6 @@ def subject(type):
     }
     return subjects[type]
     
-
-
 def get_general_document(date,title,dependece, people, name, code, start, end, typeEvent):
     # Se genera el documento dependiendo del typeEvent
     doc = DocxTemplate('BECL_PDB/doc/formato auditorio.docx') if  typeEvent == 'A' else DocxTemplate('BECL_PDB/doc/formato semilleros.docx')
@@ -151,20 +149,20 @@ def get_general_document(date,title,dependece, people, name, code, start, end, t
     return f'{name_file}.pdf'
 
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
-def format_event(title,dates,emails):
+def format_event(title, date, start,end,emails):
     list_emails = get_list_emails(emails)
-    start = dates[0]
-    end = dates[1]
+    hour_format_24_s = datetime.strptime(start, "%I:%M %p").strftime("%H:%M:%S")
+    hour_format_24_e = datetime.strptime(end, "%I:%M %p").strftime("%H:%M:%S")
     event = {
         'summary': f'{title}',
         'location': '',
         'description': '',
         'start': {
-            'dateTime': start,
+            'dateTime': f'{date}T{hour_format_24_s}-05:00',
             'timeZone': 'America/Bogota',
         },
         'end': {
-            'dateTime': end,
+            'dateTime': f'{date}T{hour_format_24_e}-05:00',
             'timeZone': 'America/Bogota',
         },
         'attendees': list_emails,
