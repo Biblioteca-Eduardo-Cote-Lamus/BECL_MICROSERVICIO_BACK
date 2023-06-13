@@ -108,6 +108,7 @@ def reset_password(request):
 
 def generate_login_token(user):
     payload = {
+        'user_rol': user.rol,
         'user_id': user.codigo,
         'user_name': user.nombre,
         'user_email': user.email,
