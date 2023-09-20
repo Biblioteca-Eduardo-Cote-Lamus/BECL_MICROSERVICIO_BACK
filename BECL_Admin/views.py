@@ -32,7 +32,7 @@ def approve_event(request):
     try:
         #Decodificamos el token para obtener el rol del usuario
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-        print(payload)
+        # print(payload)
         rol = payload['user_rol']
         #Se extrae el evento que me estan solicitando
         event = Eventos.objects.get(id=pk)
@@ -43,7 +43,8 @@ def approve_event(request):
         #Si el estado es 2, es por que fue aceptado
             if (state == 2):
                 #se genera el evento. Se extrae el titulo, fechas (Inicio y Fin), emails y el tipo de evento.
-                calendar_event = format_event(event.titulo, event.fecha, event.inicio, event.final, event.encargados)
+                calendar_event = format_event(event.titulo, event.fecha, event.inicio, event.final, eval(event.encargados))
+                # print(calendar_event)
                 service = build('calendar', 'v3', credentials=credentials)
                 #Se agenda el evento
                 service.events().insert(calendarId='primary', body=calendar_event).execute()
@@ -56,7 +57,7 @@ def approve_event(request):
                     save_folder = upload_to_folder(name_doc, event.tipo, credentials)
                     hours = (event.inicio,event.final)
                     #Se envia un correo informando sobre el evento y el comprobante del mismo
-                    sendEmialEvent(event.fecha, hours, event.encargados, event.tipo, name_doc)
+                    sendEmialEvent(event.fecha, hours, eval(event.encargados), event.tipo, name_doc)
                     return Response({'ok':True, 'message':'Evento Agendado'}, status=status.HTTP_200_OK)
                 #Se envia un correo informando de la capacitacion a realiar 
                 sendEmialEvent(event.fecha, hours, event.encargados, event.tipo)

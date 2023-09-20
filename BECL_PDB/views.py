@@ -12,9 +12,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from datetime import datetime, timedelta
-from docx2pdf import convert
 from docxtpl import DocxTemplate
-from dotenv import load_dotenv
 from .models import Eventos
 from BECL_Login.models import Usuarios
 from BECL_Admin.models import Estado
@@ -22,7 +20,6 @@ import os
 import os.path
 import jwt
 import json
-import pywin32_system32
 
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
@@ -85,14 +82,14 @@ def download_document(request):
     else:
         return JsonResponse({'ok': False, 'msg':'El documento no existe.'})
     
-def sendEmialEvent(day, hours, email, type, doc=''):
+def sendEmialEvent(day, hours, email, typeE, doc=''):
     
     context = {
         'day': day,
         'hour': hours
     }
 
-    subjects = subject(type)
+    subjects = subject(typeE)
 
     html_template = render_to_string(subjects[1], context)
     text_template = strip_tags(html_template)
@@ -100,15 +97,15 @@ def sendEmialEvent(day, hours, email, type, doc=''):
     mail = EmailMultiAlternatives(
         subjects[0],
         text_template,
-        'andresalexanderss@ufps.edu.co',
+        'pruebasbeclpbd@gmail.com',
         email
     )
 
-    #se adjunta el archivo
-    if(type == 'S' or type == 'A'):
-        pathDoc = f'BECL_PDB/doc/doc_semillero_pdf/{doc}' if type == 'S' else f'BECL_PDB/doc/doc_auditorio_pdf/{doc}'
+    if typeE == 'S' or typeE == 'A':
+        pathDoc = f'BECL_PDB/doc/doc_semillero/{doc}.docx' if typeE == 'S' else f'BECL_PDB/doc/doc_auditorio/{doc}.docx'
         with open(pathDoc, 'rb') as f:
-            mail.attach('soporte-prestamo.pdf', f.read(), 'application/pdf')
+            mail.attach_file(pathDoc)
+
 
     #Agrego la plantilla HTML como un contenido alternativo al correo electronico
     mail.attach_alternative(html_template, 'text/html')
@@ -140,13 +137,13 @@ def get_general_document(date,title,dependece, people, name, code, start, end, t
     loan = 'formato-auditorio' if typeEvent == 'A' else 'formato-semillero'
     name_file = f'{date}-{code}-{title}-{loan}'
     folder = f'BECL_PDB/doc/doc_auditorio/{name_file}.docx' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero/{name_file}.docx'
-    folderPDf = f'BECL_PDB/doc/doc_auditorio_pdf/{name_file}.pdf' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_file}.pdf'
+    # folderPDf = f'BECL_PDB/doc/doc_auditorio_pdf/{name_file}.pdf' if typeEvent == 'A' else f'BECL_PDB/doc/doc_semillero_pdf/{name_file}.pdf'
     # se renderiza y guarda la data en el documento. 
     doc.render(data_docx)
     doc.save(folder)
-    convert(folder,  folderPDf)
+    # convert(folder,  folderPDf)
 
-    return f'{name_file}.pdf'
+    return f'{name_file}'
 
 #Funcion que me retorna el formato en el cual tengo que mandar el evento a agendar
 def format_event(title, date, start,end,emails):
@@ -174,7 +171,6 @@ def format_event(title, date, start,end,emails):
 
 #Funcion que sube los formatos de prestamo a una carpeta de drive
 def upload_to_folder(name_docx, option, credentials):
-    load_dotenv()
     hour = datetime.utcnow().strftime('%H-%M-%S')
     try:
         service = build('drive', 'v3', credentials=credentials)
@@ -182,7 +178,7 @@ def upload_to_folder(name_docx, option, credentials):
             'name': f'{hour}-{name_docx}',
             'parents': [os.getenv('FOLDER_ID_A') if option == 'A' else os.getenv('FOLDER_ID_S')]
         }
-        path = f'BECL_PDB/doc/doc_auditorio/{name_docx[0:-4]}.docx' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx[0:-4]}.docx'
+        path = f'BECL_PDB/doc/doc_auditorio/{name_docx}.docx' if option == 'A' else f'BECL_PDB/doc/doc_semillero/{name_docx}.docx'
         media = MediaFileUpload(path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document', resumable=True) 
         service.files().create(body=file_metadata, media_body=media, fields= 'id').execute()
         service.close()
@@ -192,8 +188,7 @@ def upload_to_folder(name_docx, option, credentials):
 
 #Funcion que retorna la lista de correos en formato ({'email':'direccion de correo'})
 def get_list_emails(emails):
-    list_email = [{'email': 'andresalexanderss@ufps.edu.co'},
-                  {'email': 'angelgabrielgara@ufps.edu.co'},]
+    list_email = [{'email': 'angelgabrielgara@ufps.edu.co'}]
     for email in emails:
         list_email.append({'email': email})
     return list_email
