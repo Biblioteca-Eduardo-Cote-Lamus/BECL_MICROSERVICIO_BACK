@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-)5e_3fzfwm49zts(@4moe3-pmls#k#97iy1bls%&ax1@*$wat8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-#ALLOWED_HOSTS = ['192.168.2.172']
+ALLOWED_HOSTS = ['localhost']
 
 
 # Application definition
@@ -42,13 +42,6 @@ INSTALLED_APPS = [
     'BECL_PDB',
     'corsheaders',
     'BECL_Admin',
-]
-
-ALLOWED_HOSTS = [
-    '192.168.2.172',
-    '192.168.2.178',
-    '127.0.0.1',
-    'localhost',
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True;
@@ -96,7 +89,7 @@ load_dotenv() #Carga las variables de entorno
 #Configuracion de la base de datos
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DB_NAME'),
         'USER': os.getenv('DB_USER'),
         'PASSWORD': os.getenv('DB_PASSWORD'),
