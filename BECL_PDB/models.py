@@ -1,6 +1,4 @@
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
-from django.core.validators import EmailValidator
 from BECL_Login.models import Usuarios
 from BECL_Admin.models import Estado
 
@@ -15,6 +13,9 @@ class Eventos(models.Model):
     titulo = models.CharField(max_length=150)
     cantidad_personas = models.IntegerField()
     tipo = models.CharField(max_length=10)
-    encargados = ArrayField(models.EmailField(blank=True, null=True, validators=[EmailValidator()]))
+    encargados = models.TextField(blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
     url_formato = models.CharField(blank=True, max_length=150)
+
+    class Meta:
+        db_table = 'Eventos'
