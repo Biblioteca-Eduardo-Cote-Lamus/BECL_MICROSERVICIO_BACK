@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
 from .models import Eventos
 from BECL_Login.models import Usuarios
-from BECL_Admin.models import Estado
+from BECL_Admin.models import EstadoEvento
 import os
 import os.path
 import jwt
@@ -55,7 +55,7 @@ def schedule_PDB(request):
     try:
         if not is_Token_Valid(token):
             user = Usuarios.objects.get(codigo=support['code'])
-            estado = Estado.objects.get(id=1)
+            estado = EstadoEvento.objects.get(id=1)
 
             evento = Eventos(usuario=user, estado=estado, fecha=support['date'], dependencia=support['dependence'],
                             inicio=support['hours'][0], final=support['hours'][1], titulo=support['title'],cantidad_personas=support['people'], tipo=support['type'],

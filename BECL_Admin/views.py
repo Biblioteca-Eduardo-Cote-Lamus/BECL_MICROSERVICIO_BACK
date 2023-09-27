@@ -44,7 +44,6 @@ def approve_event(request):
             if (state == 2):
                 #se genera el evento. Se extrae el titulo, fechas (Inicio y Fin), emails y el tipo de evento.
                 calendar_event = format_event(event.titulo, event.fecha, event.inicio, event.final, eval(event.encargados))
-                # print(calendar_event)
                 service = build('calendar', 'v3', credentials=credentials)
                 #Se agenda el evento
                 service.events().insert(calendarId='primary', body=calendar_event).execute()
