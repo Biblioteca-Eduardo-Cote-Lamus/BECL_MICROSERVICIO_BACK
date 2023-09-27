@@ -1,20 +1,11 @@
-from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
 from django.conf import settings
 from datetime import datetime, timedelta
 from .models import Usuarios
 from dotenv import load_dotenv
-import os
 import jwt
-import json
-import pyotp
 
 # ============================================
-
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -66,7 +57,6 @@ class Login(TokenObtainPairView):
             }
         )
 
-
 class ForgotPasswordView(APIView):
     def post(self, request):
         email = request.data.get("email")
@@ -100,7 +90,7 @@ class ForgotPasswordView(APIView):
                 html_template=html_template,
             )
             return Response(
-                {"ok": True, "message": "The code was sended"},
+                {"ok": True, "message": "The code was sended", "code": OTP.generate_code()},
                 status=status.HTTP_200_OK,
             )
         except:
@@ -109,8 +99,34 @@ class ForgotPasswordView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
             
+class ValidCode(APIView):
 
+    def post(self, request):    
+        code = request.data.get('codeVery')
+        if not OTP.validate_code(code):
+            return Response({'ok': False, 'message': 'The code has been expired'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        return Response({'ok': True, 'message': 'The code has been verified'}, status=status.HTTP_200_OK)
 
+class ResetPassword(APIView):
+    def post(self, request): 
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        # change the password
+
+        user = Usuarios.objects.filter(email=email).first()
+        if not user:
+            return Response(
+                {"ok": False, "message": f"{email} does'nt exist. Try again"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        user.set_password(password)
+        user.save()
+
+        return Response({'ok':True, 'message': 'The password has been updated'}, status=status.HTTP_200_OK)
+    
 class Emails(APIView):
     def post(self, request):
         html_template = render_to_string(
@@ -128,6 +144,43 @@ class Emails(APIView):
         return Response({"msg": "email was send"})
 
 
+def generate_login_token(user):
+    payload = {
+        "user_rol": user.rol.descripcion,
+        "user_id": user.codigo,
+        "user_name": user.nombre,
+        "user_email": user.email,
+        "user_faculty": user.facultad,
+        "exp": datetime.utcnow() + timedelta(hours=1),
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    return token
+
+
+def generate_forgot_token(user_id):
+    payload = {"user_id": user_id, "exp": datetime.utcnow() + timedelta(minutes=5)}
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    return token
+
+
+def is_Token_Valid(token):
+    colombia_time = datetime.utcnow() + timedelta(hours=-5)
+    decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms="HS256")
+    exp_timestamp = decode_token["exp"]
+    exp_datetime = datetime.fromtimestamp(exp_timestamp)
+    if colombia_time < exp_datetime:
+        return False
+    else:
+        return True
+
+
+def email_valid(email):
+    regex = r"([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+"
+    if re.fullmatch(regex, email):
+        return True
+    return False
+
+"""
 # @csrf_exempt
 # @require_http_methods(["POST"])
 # def forgot_password(request):
@@ -168,25 +221,27 @@ class Emails(APIView):
 #         return JsonResponse(
 #             {"ok": False, "message": "El correo introducido no es valido"}
 #         )
+"""
 
-
+"""
 @csrf_exempt
-@require_http_methods(["POST"])
-def valid_code(request):
-    body = json.loads(request.body.decode("utf-8"))
-    code_very = int(body.get("codeVery"))
-    token = body.get("token")
-    totp = pyotp.TOTP(os.getenv("SECRET_KEY_P"), interval=59)
-    try:
-        if not is_Token_Valid(token) and totp.verify(code_very):
-            return JsonResponse({"ok": True, "message": "Codigo verificado"})
-        return JsonResponse({"ok": True})
-    except jwt.exceptions.ExpiredSignatureError:
-        return JsonResponse({"ok": False, "message": "El token a expirado"})
-    except jwt.exceptions.InvalidSignatureError:
-        return JsonResponse({"ok": False, "message": "El token es invalido"})
+# @require_http_methods(["POST"])
+# def valid_code(request):
+#     body = json.loads(request.body.decode("utf-8"))
+#     code_very = int(body.get("codeVery"))
+#     token = body.get("token")
+#     totp = pyotp.TOTP(os.getenv("SECRET_KEY_P"), interval=59)
+#     try:
+#         if not is_Token_Valid(token) and totp.verify(code_very):
+#             return JsonResponse({"ok": True, "message": "Codigo verificado"})
+#         return JsonResponse({"ok": True})
+#     except jwt.exceptions.ExpiredSignatureError:
+#         return JsonResponse({"ok": False, "message": "El token a expirado"})
+#     except jwt.exceptions.InvalidSignatureError:
+#         return JsonResponse({"ok": False, "message": "El token es invalido"})
+"""
 
-
+"""
 @csrf_exempt
 @require_http_methods(["POST"])
 def reset_password(request):
@@ -212,39 +267,6 @@ def reset_password(request):
             {"ok": False, "message": "El Usuario no se ha encontrado"}, status=400
         )
 
-
-def generate_login_token(user):
-    payload = {
-        "user_rol": user.rol.descripcion,
-        "user_id": user.codigo,
-        "user_name": user.nombre,
-        "user_email": user.email,
-        "user_faculty": user.facultad,
-        "exp": datetime.utcnow() + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-    return token
+"""
 
 
-def generate_forgot_token(user_id):
-    payload = {"user_id": user_id, "exp": datetime.utcnow() + timedelta(minutes=5)}
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-    return token
-
-
-def is_Token_Valid(token):
-    colombia_time = datetime.utcnow() + timedelta(hours=-5)
-    decode_token = jwt.decode(token, settings.SECRET_KEY, algorithms="HS256")
-    exp_timestamp = decode_token["exp"]
-    exp_datetime = datetime.fromtimestamp(exp_timestamp)
-    if colombia_time < exp_datetime:
-        return False
-    else:
-        return True
-
-
-def email_valid(email):
-    regex = r"([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+"
-    if re.fullmatch(regex, email):
-        return True
-    return False
