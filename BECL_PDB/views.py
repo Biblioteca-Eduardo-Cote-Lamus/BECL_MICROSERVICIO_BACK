@@ -11,7 +11,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.errors import HttpError
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from datetime import datetime, timedelta
+ 
 from docxtpl import DocxTemplate
 from .models import Eventos
 from BECL_Login.models import Usuarios
@@ -21,29 +21,33 @@ import os.path
 import jwt
 import json
 
+# ============================================================
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework import status
+from .utils.calendar import get_events_today
+
 list_events = []
 list_hours_today = [6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
-@csrf_exempt
-@require_http_methods(['POST'])
-def events_PDB(request):
-    credentials = getCredentials()
-    body = json.loads(request.body.decode('utf-8'))
-    token = body.get('token')
-    date = body.get('dates')
-    type_event = body.get('type')
-    service = build('calendar', 'v3', credentials=credentials)
-    try:
-        if not is_Token_Valid(token):
-            list_event_today = events_today(service,date[0],date[1],type_event)
-            list_possible_hours = possible_hours(list_event_today,list_hours_today.copy())
-            ranges = generate_ranges(list_possible_hours)
-            answer = generate_possible_end_times(ranges)
-            service.close()
-            return JsonResponse({'events_hours':answer})     
-        return JsonResponse({'ok': False, 'message':'Ocurrio un error'})
-    except jwt.exceptions.InvalidTokenError:
-        return JsonResponse({'ok': False})
+class CalendarEvents(APIView):
+    def post(self, request): 
+        credentials = getCredentials()
+        calendar_service = build('calendar', 'v3', credentials=credentials)
+        # Obtengo los datos de la peticion.
+        dates = request.data.get('dates')
+        type_event = request.data.get('type')
+        # obtengo las horas disponibles 
+        hours = get_events_today(calendar_service, dates[0], dates[1], type_event)
+        try:
+            events = get_events_today(calendar_service,dates[0],dates[1],type_event)
+            return JsonResponse({'ok': True, 'events_hours':events},status=status.HTTP_200_OK)     
+        except:
+            return JsonResponse({'ok': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            calendar_service.close()
+
 
 @csrf_exempt
 @require_http_methods(['POST'])
@@ -193,14 +197,6 @@ def get_list_emails(emails):
         list_email.append({'email': email})
     return list_email
 
-#Funcion que me retorna los eventos de una fecha dada
-def events_today(service, start, end, option):
-    events_result = service.events().list(calendarId='primary', timeMin=start, timeMax=end, singleEvents=True, orderBy='startTime').execute()
-    list_events = events_result.get('items',[])
-    list_events = list(filterByOption(list_events, option))
-    list_events = realization_events(list_events)
-    return list_events
-
 #Funcion que valida que el token este activo
 def is_Token_Valid(token):
     colombia_time = datetime.utcnow() + timedelta(hours=-5)
@@ -212,78 +208,6 @@ def is_Token_Valid(token):
     else:
         return True
     
-#Funcion que me devuelve los eventos a realizar
-def realization_events(list_event):
-    list_hours_events = []
-    for event in list_event:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        end = event['end'].get('dateTime', event['end'].get('date'))
-        start_time =  datetime.strptime( datetime.fromisoformat(start).strftime('%I:%M %p'), '%I:%M %p' ).strftime('%H')
-        end_time =  datetime.strptime( datetime.fromisoformat(end).strftime('%I:%M %p'), '%I:%M %p' ).strftime('%H')
-        list_hours_events.append([int(start_time),int(end_time)])
-    return list_hours_events
-
-#Funcion que convierte de unformato de Hora 00:00 PM/AM a formato de 24H
-def stringToInt(list_hours):
-    list_hours_int = []
-    for hours in list_hours:
-        start = datetime.strptime(hours[0], '%I:%M %p').strftime('%H')
-        end = datetime.strptime(hours[1], '%I:%M %p').strftime('%H')
-        list_hours_int.append([int(start), int(end)])
-    return list_hours_int
-
-#Funcion que me remueve las horas que no estan disponibles
-def possible_hours(list_events, list_hours):
-    for schedule in list_events:
-        if len(schedule) == 0:
-            return
-        else:
-            for hora in range(schedule[0], schedule[1]):
-                list_hours.remove(hora)
-    return list_hours
-
-# Funcion que genera los posbles rangos de las horas
-def generate_ranges(list_schedule):
-    ranges = []
-    if len(list_schedule) == 0: return ranges
-    start_hours = list_schedule[0]
-    if len(list_schedule) == 14:
-        ranges.append([6,19])
-        return ranges
-    for i in range(len(list_schedule)-1):
-        if list_schedule[i+1] - list_schedule[i] != 1:
-            if start_hours == list_schedule[i]:
-                ranges.append([start_hours])
-            else:
-                ranges.append([start_hours, list_schedule[i]])
-            start_hours = list_schedule[i+1]
-    ranges.append([start_hours, list_schedule[-1]])
-    return ranges
-
-#Funcion que genera los rangos de las horas: Ejemplo empieza a las 6 lo max es a las 10 tiempo de apartado de 4h
-def generate_ranges_hours(start,end):
-    max_possible_hours = start + 4
-    if max_possible_hours in range(start, end +1):
-        return {'hours': str(start) + ":00 am" if start <= 12 else str(abs(start-12)) + ":00 pm",
-                'possible': [x for x in range(start+1, max_possible_hours+1)]}
-    else:
-        return {'hours': str(start) + ":00 am" if start <= 12 else str(abs(start-12)) + ":00 pm", 
-                'possible': [x for x in range(start + 1, end + 2)]}
-
-#Funcion que genera los rangos posibles si solo hay una hora
-def generate_possible_end_times(ranges):
-    hours = []
-    for range_hours in ranges:
-        lists = list(range(range_hours[0], range_hours[1] + 1)) if len(range_hours) == 2 else list(range(range_hours[0], range_hours[0] + 1))
-        for i in lists:
-            hours.append(generate_ranges_hours(i, range_hours[-1]))
-    return hours
-
-#Funcion que filtar los eventos por la opciones: A: Auditorio, S: semillero, BD: Base de datos
-def filterByOption(events,option):
-    return filter(lambda event: option in event['summary'].split(':')[0] , events)
-
-
 #Funcion que me genera el token
 def getCredentials():
     # Si modifica este scopes, borra el archivo token.json 
@@ -306,3 +230,35 @@ def getCredentials():
         with open('token.json', 'w') as token:
             token.write(creds.to_json()) 
     return creds
+
+
+"""
+def stringToInt(list_hours):
+    list_hours_int = []
+    for hours in list_hours:
+        start = datetime.strptime(hours[0], '%I:%M %p').strftime('%H')
+        end = datetime.strptime(hours[1], '%I:%M %p').strftime('%H')
+        list_hours_int.append([int(start), int(end)])
+    return list_hours_int
+
+"""
+
+"""
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def events_PDB(request):
+    credentials = getCredentials()
+    body = json.loads(request.body.decode('utf-8'))
+    token = body.get('token')
+    date = body.get('dates')
+    type_event = body.get('type')
+    service = build('calendar', 'v3', credentials=credentials)
+    try:
+        events = get_events_today(service,date[0],date[1],type_event)
+        service.close()
+        return JsonResponse({'events_hours':events})     
+    except:
+        return JsonResponse({'ok': False})
+
+"""
