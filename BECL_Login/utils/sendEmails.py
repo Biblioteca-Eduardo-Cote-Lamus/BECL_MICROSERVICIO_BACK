@@ -7,7 +7,7 @@ def send_email(data: dict, html_template=None, files=None):
     Envía un correo electrónico con los datos proporcionados.
 
     Args:
-        data (dict): Un diccionario con las claves 'header', 'body', 'from' y 'to'.
+        data (dict): Un diccionario con las claves 'subject', 'body', 'from' y 'to'.
         html_template: Una plantilla html convertida a string.
         files: Una lista con los path absolutos de los documentos a enviar.
     """
