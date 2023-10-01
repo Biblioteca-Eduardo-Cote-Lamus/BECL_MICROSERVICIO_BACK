@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import get_list_events_to_accept, approve_event
+from .views import ListEvents, ApproveEvent
 
 urlpatterns = [
-    path('list-events', get_list_events_to_accept, name='list_events'),
-    path('approve-event/', approve_event, name='approve_event'),
+    path('list-events', ListEvents.as_view(), name='list_events'),
+    path('approve-event/', ApproveEvent.as_view(), name='approve_event_v2'),
 ]

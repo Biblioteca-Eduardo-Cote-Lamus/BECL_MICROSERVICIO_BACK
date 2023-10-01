@@ -5,7 +5,7 @@ class EventosSerializers(serializers.ModelSerializer):
     nombre = serializers.SerializerMethodField()
 
     def get_nombre(self, obj):
-        return obj.usuario.nombre
+        return obj.usuario.last_name
     
     class Meta:
         model = Eventos
