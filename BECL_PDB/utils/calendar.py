@@ -12,25 +12,12 @@ list_events = []
 list_hours_today = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 
 
-def get_events_today(service, start, end, option):
-    events_result = (
-        service.events()
-        .list(
-            calendarId="primary",
-            timeMin=start,
-            timeMax=end,
-            singleEvents=True,
-            orderBy="startTime",
-        )
-        .execute()
-    )
-    events = list(filterByOption(events_result.get("items", []), option))
+def get_events_today(events_list, option):
+    events = list(filterByOption(events_list, option))
     results = realization_events(events)
-
     # obtenmos la lista de posibles horas
     list_possible_hours = possible_hours(results, list_hours_today.copy())
     available_hours = generate_possible_end_times(generate_ranges(list_possible_hours))
-
     return available_hours
 
 
