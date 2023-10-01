@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime 
 from docxtpl import DocxTemplate
 
 def __get_list_emails(emails):
@@ -29,7 +29,7 @@ def get_general_document(
     }
     # se genera la terminacion del formato.
     loan = "formato-auditorio" if typeEvent == "A" else "formato-semillero"
-    name_file = f"{date}-{code}-{title}-{loan}"
+    name_file = f"{date}-{code}-{'-'.join(title.split(' '))}-{loan}"
     folder = (
         f"BECL_PDB/doc/doc_auditorio/{name_file}.docx"
         if typeEvent == "A"
