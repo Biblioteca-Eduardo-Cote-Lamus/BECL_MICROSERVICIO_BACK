@@ -19,13 +19,21 @@ def send_email(data: dict, html_template=None, files=None):
         to=[data["to"]],
     )
 
-    if(html_template):
+    if html_template:
         mail.attach_alternative(html_template, 'text/html')
 
-    if(files):
+    if files:
        for file in files:
         mail.attach_file(file)
 
     mail.send()
 
     return "email was send"
+
+
+SUBJECTS = {
+    "A": ["Préstamo Auditorio", "plantilla_auditorio.html"],
+    "S": ["Préstamo Sala de Semilleros", "plantilla_semillero.html"],
+    "BD": ["Capacitación Base de Datos.", "plantilla_capacitacion.html"],
+}
+
