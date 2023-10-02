@@ -32,9 +32,9 @@ class ApproveEvent(APIView, GoogleAPIMixin):
             file_metadata = {
                 "name": f"{uuid.uuid4().hex}-{name_docx}",
                 "parents": [
-                    os.getenv("FOLDER_ID_A")
+                    os.environ.get("FOLDER_A")
                     if option == "A"
-                    else os.getenv("FOLDER_ID_S")
+                    else os.environ.get("FOLDER_S")
                 ],
             }
             path = (

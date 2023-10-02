@@ -31,8 +31,8 @@ class CalendarEvents(APIView, GoogleAPIMixin):
 class SaveEvent(APIView):
     def post(self, request):
         try:
-            support = request.data.get("support")
-            user = Usuarios.objects.get(username=support["code"])
+            support = request.data.get("data")["support"]
+            user = Usuarios.objects.get(id=int(support["code"]))
             state_event = EstadoEvento.objects.get(id=1)
             event = Eventos(
                 fecha_solicitada=support["date"],
