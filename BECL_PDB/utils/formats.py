@@ -1,11 +1,14 @@
 from datetime import datetime 
 from docxtpl import DocxTemplate
+from BECL_Login.models import Usuarios
 
 def __get_list_emails(emails):
-    list_email = [{"email": "angelgabrielgara@ufps.edu.co"}]
+    tics = list(Usuarios.objects.filter(cargo_id=1).values())
+    list_email = list(map(lambda tic: tic["email"], tics))
     for email in emails:
-        list_email.append({"email": email})
-    return list_email
+        if not email in list_email:
+            list_email.append(email)
+    return list(map(lambda e: {'email': e} , list_email))
 
 def get_general_document(
     date, title, dependece, people, name, code, start, end, typeEvent

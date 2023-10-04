@@ -1,4 +1,5 @@
 from django.template.loader import render_to_string
+from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
@@ -29,6 +30,7 @@ class ListEvents(APIView):
         filterId = request.data.get("filterId")
         if filterId is None:
             filterId = 1
+       
         event_serializers = EventosSerializers(
             Eventos.objects.filter(estado_id=filterId), many=True
         )
@@ -36,38 +38,26 @@ class ListEvents(APIView):
 
 class ApproveEvent(APIView, GoogleAPIMixin):
     #TODO: Implementar los permisos y seguridad con el JWT a ApproveEvent
-
-    def get(self, request):
-        try:
-            type_event = Eventos.objects.get(id=int(request.data.get('id_event'))).tipo
-            managers = UsuariosSerializers(self.__get_managers(type_event), many=True)
-            print(self.__get_managers(type_event), type_event)
-            # if type_event == 'A':
-            #     return Response({'ok': True}, status=status.HTTP_200_OK)
-            # if type_event == 'S':
-            #     return Response({'ok': True}, status=status.HTTP_200_OK)
-            
-            return Response({'ok': True, 'managers': managers.data}, status=status.HTTP_200_OK)
-        except Exception as e:
-            raise e
-            Response({'ok': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-
-
     def put(self, request):
         id_event = int(request.data.get("id_event"))
+        manager_id = int(request.data.get('managerId'))
         self.init_service("calendar")
         try:
             event = Eventos.objects.get(id=id_event)
             event.estado_id = 2
-
+            event.funcionario_encargado_id = manager_id
+            encargados = list(eval(event.encargados))
+            encargado_email = Usuarios.objects.get(id=manager_id).email
+            encargados.append(encargado_email)
+                             
             # se genera el formato del evento para google drive. Se extrae el titulo, fechas (Inicio y Fin), emails y el tipo de evento.
             calendar_event = format_event(
                 event.titulo,
                 event.fecha_solicitada,
                 event.inicio,
                 event.final,
-                eval(event.encargados),
+                emails=encargados,
             )
 
             # se obtiene los datos necesarios para enviar el email
@@ -76,7 +66,7 @@ class ApproveEvent(APIView, GoogleAPIMixin):
             # Generamos el doc de soporte del prestamo si el tipo del evento no es base de datos.
             name_doc = (
                 None
-                if event.tipo == "DB"
+                if event.tipo == "BD"
                 else get_general_document(
                     event.fecha_solicitada,
                     event.titulo,
@@ -91,7 +81,7 @@ class ApproveEvent(APIView, GoogleAPIMixin):
             )
 
             # Guardamos en una carpeta de drive el soporte
-            if event.tipo != "DB":
+            if event.tipo != "BD":
                 self.upload_doc(name_doc, event.tipo)
 
             # se obtiene la ruta absoluta del documento a subir
@@ -99,7 +89,7 @@ class ApproveEvent(APIView, GoogleAPIMixin):
             # TODO: Unificar las rutas para simplificar la logica.
             files = (
                 None
-                if event.tipo == "DB"
+                if event.tipo == "BD"
                 else f"{self.__get_absolute_path(event.tipo)}{name_doc}.docx"
             )
 
@@ -110,7 +100,7 @@ class ApproveEvent(APIView, GoogleAPIMixin):
                     "to": event.usuario.email,
                 },
                 html_template=email["template"],
-                files=[files],
+                files=[files] if files else files,
             )
 
             event.save()
@@ -126,6 +116,7 @@ class ApproveEvent(APIView, GoogleAPIMixin):
             event.estado_id = 1
             event.save()
             self.service.close()
+            raise e
             return Response(
                 {"ok": False, "message": "unexpected error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -177,8 +168,9 @@ class ApproveEvent(APIView, GoogleAPIMixin):
     def __get_managers(self, type_event):
         if type_event == 'DB':
             return Usuarios.objects.filter(ubicacion_id=3)
-        
-        return Usuarios.objects.filter(ubicacion_id=3) if type_event == 'A' else Usuarios.objects.filter(ubicacion_id=2)
+        #filtra para TIC, PASILLO 1 Y PASILLO 2 si es auditorio 
+        #filtra por pasillo 2 si es auditorio
+        return Usuarios.objects.filter(Q(ubicacion_id=3) | Q(ubicacion_id=1)) if type_event == 'A' else Usuarios.objects.filter(ubicacion_id=2)
 class RejectEvent(APIView):
     #TODO: Implementar los permisos y seguridad con el JWT a RejectEvent
     def put(self, request):
